@@ -6,6 +6,18 @@ from unidecode import unidecode
 from collections import defaultdict
 import cPickle as pickle
 
+def check_missing(part, complete):
+    missing = []
+    for entry in complete:
+        if entry not in part:
+            missing.append(entry)
+    
+    if len(missing) > 0:
+        print "Missing:"
+        for m in missing:
+            print m
+        
+
 def read_interesting_list(path):
     interesting = []
     with open(path, "r") as interesting_file:
@@ -41,9 +53,9 @@ def write_interesting_words(qualitative_constr, filename):
 
 def read_data(corpus_directory):
     if(os.path.isfile('saga_sentences.p')):
-        print 'Now reading in pickle...'
         with open('saga_sentences.p', 'rb') as saga_pickle:
             sentences = pickle.load(saga_pickle)
+        print "Pickle loaded."
     else:
         corpus_paths = []
         # Form paths of corpus files
@@ -90,8 +102,8 @@ def collect_counts(sentences, interesting_list):
     genitive = []
     for sentence in sentences:
         sentence_words = " ".join([word for lemma,tag,word in sentence])
-        for lemma,tag,word in sentence:
-            
+        for pos in range(0,len(sentence)):
+            lemma,tag,word = sentence[pos]
             # Detect genitive nouns
             if len(tag) > 3:
                 if (tag[0] == "n" and tag[3]=="e"):
@@ -116,9 +128,13 @@ def collect_counts(sentences, interesting_list):
             if lemma in interesting_list:
                 qualitative_constr[lemma].append((tag, sentence_words))
     
-    #write_interesting_words(qualitative_constr, "interesting_output.csv")
+    # Write to files
+    write_interesting_words(qualitative_constr, "interesting_output.csv")
     write_construction(construction["gen_common_noun"], "genitive_common_noun.csv",1000)
     write_construction(construction["gen"], "genitive.csv",1000)
+    
+    # Output entries from interesting list that have not been found in corpus
+    check_missing(qualitative_constr, interesting_list)
 
 if __name__ == "__main__":
     data = read_data("Saga")
