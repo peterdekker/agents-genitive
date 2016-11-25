@@ -51,7 +51,7 @@ def write_construction_pdf(tokens_list, label, cutoff=None):
     file_output += "\\hline\n"
     if cutoff is not None:
         tokens_list = tokens_list[:cutoff]
-    i=1
+    i=2
     for preceding,construction,following in tokens_list:
         file_output += str(i) + "&" + preceding + " \\textbf{" + construction + "} " + following + "\\\\\n"
         file_output += "\\hline\n"
