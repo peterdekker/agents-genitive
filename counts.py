@@ -87,24 +87,24 @@ def collect_counts(sentences, interesting_list):
                         following_string = " ".join(sentence_words[end_pos+1:])
                         construction["dat"].append((preceding_string,dative_string,following_string))
                         dative = []
-                    elif len(preposition) > 0:
-                        start_pos = preposition[0][1]
-                        end_pos = preposition[-1][1]
-                        preposition_string = " ".join([word for word,pos in preposition])
-                        preceding_string = " ".join(sentence_words[:start_pos])
-                        following_string = " ".join(sentence_words[end_pos+1:])
-                        construction["pre"].append((preceding_string,preposition_string,following_string))
-                        preposition = []
             elif len(tag) == 2:
                 if ((tag == "ae")
                     or tag =="aþ"
                     or tag == "aþe"
                     or tag == "aþm"):
                     preposition.append((word,pos))
+                    start_pos = preposition[0][1]
+                    end_pos = preposition[-1][1]
+                    preposition_string = " ".join([word for word,pos in preposition])
+                    preceding_string = " ".join(sentence_words[:start_pos])
+                    following_string = " ".join(sentence_words[end_pos+1:])
+                    construction["pre"].append((preceding_string,preposition_string,following_string))
+                    preposition = []
                      
             # Detect interesting words
             if lemma in interesting_list:
                 qualitative_constr[lemma].append((tag, sentence_string))
+    
     
     # Write to files
     io.write_interesting_words_csv(qualitative_constr, "interesting_output")
