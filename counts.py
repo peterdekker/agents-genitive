@@ -59,11 +59,11 @@ def collect_counts(sentences, interesting_list):
             
             # Detect dative, where in some positions this dative can be found on an other position
             if ('þ' in tag):
-                if ((tag[0] == "n" and ((tag[3] + tag[4])) =="þ")
-                    or (tag[0] == "f" and ((tag[4] + tag[5])) =="þ")    # number dative
-                    or (tag[0] == "l" and ((tag[3] + tag[4])) =="þ")
-                    or (tag[0] == "g" and ((tag[3] + tag[4])) =="þ")
-                    or (tag[0] == "t" and ((tag[4] + tag[5])) =="þ")
+                if ((tag[0] == "n" and (tag[3] + tag[4]) =="þ")
+                    or (tag[0] == "f" and (tag[4] + tag[5]) =="þ")    # number dative
+                    or (tag[0] == "l" and (tag[3] + tag[4]) =="þ")
+                    or (tag[0] == "g" and (tag[3] + tag[4]) =="þ")
+                    or (tag[0] == "t" and (tag[4] + tag[5]) =="þ")
                     or (word == "og" and len(dative) > 0)): # 'og' may occur in dative, as second or later
                         # TODO: look at excluding gen. pronoun "hans" from list
                         dative.append((word,pos))
