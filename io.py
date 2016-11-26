@@ -22,7 +22,7 @@ def write_word_csv(tokens_list, label, cutoff=None):
     for lemma,tag,preceding,word,following in tokens_list:
         file_output += lemma + "," + tag + "," + preceding + "," + word + "," + following + "\n"
     with open(filename,"w") as construction_file:
-        construction_file.write(file_output)
+        construction_file.write(file_output.encode('utf-8'))
 
 def write_construction_csv(tokens_list, label, cutoff=None):
     filename = label.lower() + ".csv"
@@ -32,7 +32,7 @@ def write_construction_csv(tokens_list, label, cutoff=None):
     for preceding,construction,following in tokens_list:
         file_output += preceding + "," + construction + "," + following + "\n"
     with open(filename,"w") as construction_file:
-        construction_file.write(file_output)
+        construction_file.write(file_output.encode('utf-8'))
         
 def write_construction_pdf(tokens_list, label, cutoff=None):
     filename = label.lower() + ".tex"
@@ -109,9 +109,9 @@ def read_data(corpus_directory):
                 if word.tag == "w":
                     # Word
                     # Add pair (word, tag) to sentence
-                    lemma = word.get("lemma").encode('utf-8')
-                    tag = word.get("type").encode('utf-8')
-                    word_surface = word.text.encode('utf-8')
+                    lemma = word.get("lemma")
+                    tag = word.get("type")
+                    word_surface = word.text
                     sentence.append((lemma,tag,word_surface))
                     
                 elif word.tag == "c":

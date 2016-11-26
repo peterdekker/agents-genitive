@@ -35,6 +35,7 @@ def collect_counts(sentences, interesting_list):
         sentence_words = [word for lemma,tag,word in sentence]
         sentence_string = " ".join(sentence_words)
         for pos in range(0,len(sentence)):
+            
             lemma,tag,word = sentence[pos]
             # Detect nouns for common list
             if len(tag) > 3:
@@ -44,26 +45,27 @@ def collect_counts(sentences, interesting_list):
                     following_string = " ".join(sentence_words[pos+1:])
                     construction["gen_common_noun"].append((lemma,tag,preceding_string,word,following_string))
                 # Detect dative nouns
-                elif ((len(tag) > 4) and (tag[0]== "n") and ((tag[3] + tag[4]) == "þ")):
+                elif ((len(tag) > 4) and (tag[0]== "n") and (tag[3] == u"þ")):
                     preceding_string = " ".join(sentence_words[:pos])
                     following_string = " ".join(sentence_words[pos+1:])
                     construction["dat_common_noun"].append((lemma,tag,preceding_string,word,following_string))
                 # Detect preposition  nouns
                 elif (tag == "ae"
-                    or tag =="aþ"
-                    or tag == "aþe"
-                    or tag == "aþm"):
+                    or tag ==u"aþ"
+                    or tag == u"aþe"
+                    or tag == u"aþm"):
                     preceding_string = " ".join(sentence_words[:pos])
                     following_string = " ".join(sentence_words[pos+1:])
                     construction["pre_common_noun"].append((lemma,tag,preceding_string,word,following_string))    
             
             # Detect dative, where in some positions this dative can be found on an other position
-            if ('þ' in tag):
-                if ((tag[0] == "n" and (tag[3] + tag[4]) =="þ")
-                    or (tag[0] == "f" and (tag[4] + tag[5]) =="þ")    # number dative
-                    or (tag[0] == "l" and (tag[3] + tag[4]) =="þ")
-                    or (tag[0] == "g" and (tag[3] + tag[4]) =="þ")
-                    or (tag[0] == "t" and (tag[4] + tag[5]) =="þ")
+            if (u'þ' in tag):
+                print
+                if ((tag[0] == "n" and tag[3] == u"þ")
+                    or (tag[0] == "f" and tag[4] == u"þ")    # number dative
+                    or (tag[0] == "l" and tag[3] == u"þ")
+                    or (tag[0] == "g" and tag[3] == u"þ")
+                    or (tag[0] == "t" and tag[4] == u"þ")
                     or (word == "og" and len(dative) > 0)): # 'og' may occur in dative, as second or later
                         # TODO: look at excluding gen. pronoun "hans" from list
                         dative.append((word,pos))
@@ -100,27 +102,27 @@ def collect_counts(sentences, interesting_list):
                         genitive = []
             
             # Detect preposition
-            elif len(tag) == 2:
-                if ((tag == "ae")
-                    or tag =="aþ"
-                    or tag == "aþe"
-                    or tag == "aþm"):
-                    preposition.append((word,pos))
-                    start_pos = preposition[0][1]
-                    end_pos = preposition[-1][1]
-                    preposition_string = " ".join([word for word,pos in preposition])
-                    preceding_string = " ".join(sentence_words[:start_pos])
-                    following_string = " ".join(sentence_words[end_pos+1:])
-                    construction["pre"].append((preceding_string,preposition_string,following_string))
-                    preposition = []
+            if ((tag == "ae"
+                or tag == u"aþ"
+                or tag == u"aþe"
+                or tag == u"aþm")
+                and word in [u"á",u"hjá",u"frá"]):
+                preposition.append((word,pos))
+                start_pos = preposition[0][1]
+                end_pos = preposition[-1][1]
+                preposition_string = " ".join([word for word,pos in preposition])
+                preceding_string = " ".join(sentence_words[:start_pos])
+                following_string = " ".join(sentence_words[end_pos+1:])
+                construction["pre"].append((preceding_string,preposition_string,following_string))
+                preposition = []
                      
             # Detect interesting words
-            if lemma in interesting_list:
+            if lemma.encode('utf-8') in interesting_list:
                 qualitative_constr[lemma].append((tag, sentence_string))
     
     
     # Write to files
-    io.write_interesting_words_csv(qualitative_constr, "interesting_output")
+    #io.write_interesting_words_csv(qualitative_constr, "interesting_output")
     io.write_word_csv(construction["gen_common_noun"], "genitive_common_noun",1000)
     io.write_word_csv(construction["dat_common_noun"], "dative_common_noun",1000)
     io.write_word_csv(construction["pre_common_noun"], "preposition_common_noun",1000)
