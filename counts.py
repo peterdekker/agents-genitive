@@ -37,7 +37,7 @@ def collect_counts(sentences, interesting_list):
                     preceding_string = " ".join(sentence_words[:pos])
                     following_string = " ".join(sentence_words[pos+1:])
                     construction["gen_common_noun"].append((lemma,tag,preceding_string,word,following_string))
-                elif ((tag [0]== "n") and ((tag[3] == "t") and (tag[4] == "h"))):
+                elif ((tag [0]== "n") and ((tag[3] == "þ"))):
                     preceding_string = " ".join(sentence_words[:pos])
                     following_string = " ".join(sentence_words[pos+1:])
                     construction["dat_common_noun"].append((lemma,tag,preceding_string,word,following_string))
@@ -53,11 +53,11 @@ def collect_counts(sentences, interesting_list):
                     or (word == "og" and len(genitive) >0)): # 'og' may occur in genitive, as second or later
                         # TODO: look at excluding gen. pronoun "hans" from list
                         genitive.append((word,pos))
-                elif ((tag [0]== "n") and ((tag[3] == "t") and (tag[4] == "h")) # noun dative
-                    or (tag[0] == "f" and tag[4]=="▒")    # pronoun dative
-                    or (tag[0] == "l" and tag[3]=="▒")    # adjective dative
-                    or (tag[0] == "g" and tag[3]=="▒")    # article dative
-                    or (tag[0] == "t" and tag[4]=="▒")    # number dative
+                elif ((tag [0]== "n") and ((tag[3] == "þ")) # noun dative
+                    or (tag[0] == "f" and tag[4]=="þ")    # pronoun dative
+                    or (tag[0] == "l" and tag[3]=="þ")    # adjective dative
+                    or (tag[0] == "g" and tag[3]=="þ")    # article dative
+                    or (tag[0] == "t" and tag[4]=="þ")    # number dative
                     or (word == "og" and len(dative) >0)): # 'og' may occur in dative, as second or later
                         # TODO: look at excluding gen. pronoun "hans" from list
                         dative.append((word,pos))
