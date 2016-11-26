@@ -26,6 +26,7 @@ def collect_counts(sentences, interesting_list):
      
     genitive = []
     dative = []
+    preposition = []
     for sentence in sentences:
         sentence_words = [word for lemma,tag,word in sentence]
         sentence_string = " ".join(sentence_words)
@@ -37,11 +38,17 @@ def collect_counts(sentences, interesting_list):
                     preceding_string = " ".join(sentence_words[:pos])
                     following_string = " ".join(sentence_words[pos+1:])
                     construction["gen_common_noun"].append((lemma,tag,preceding_string,word,following_string))
-                elif ((tag [0]== "n") and ((tag[3] == "þ"))):
+                elif ((tag[0]== "n") and ((tag[3] == "þ"))):
                     preceding_string = " ".join(sentence_words[:pos])
                     following_string = " ".join(sentence_words[pos+1:])
                     construction["dat_common_noun"].append((lemma,tag,preceding_string,word,following_string))
-                    
+                elif (tag == "ae"
+                    or tag =="aþ"
+                    or tag == "aþe"
+                    or tag == "aþm"):
+                    preceding_string = " ".join(sentence_words[:pos])
+                    following_string = " ".join(sentence_words[pos+1:])
+                    construction["pre_common_noun"].append((lemma,tag,preceding_string,word,following_string))    
             
             # Detect genitive
             if len(tag) > 3 :
@@ -53,7 +60,7 @@ def collect_counts(sentences, interesting_list):
                     or (word == "og" and len(genitive) >0)): # 'og' may occur in genitive, as second or later
                         # TODO: look at excluding gen. pronoun "hans" from list
                         genitive.append((word,pos))
-                elif ((tag [0]== "n") and ((tag[3] == "þ")) # noun dative
+                elif ((tag[0]== "n") and ((tag[3] == "þ")) # noun dative
                     or (tag[0] == "f" and tag[4]=="þ")    # pronoun dative
                     or (tag[0] == "l" and tag[3]=="þ")    # adjective dative
                     or (tag[0] == "g" and tag[3]=="þ")    # article dative
@@ -71,16 +78,30 @@ def collect_counts(sentences, interesting_list):
                         following_string = " ".join(sentence_words[end_pos+1:])
                         construction["gen"].append((preceding_string,genitive_string,following_string))
                         genitive = []
-                    # If a genitive has built up, it is now ended
+                    # If a dative has built up, it is now ended
                     elif len(dative) > 0:
                         start_pos = dative[0][1]
                         end_pos = dative[-1][1]
-                        dative_string = " ".join([word for word,pos in genitive])
+                        dative_string = " ".join([word for word,pos in dative])
                         preceding_string = " ".join(sentence_words[:start_pos])
                         following_string = " ".join(sentence_words[end_pos+1:])
                         construction["dat"].append((preceding_string,dative_string,following_string))
                         dative = []
-            
+                    elif len(preposition) > 0:
+                        start_pos = preposition[0][1]
+                        end_pos = preposition[-1][1]
+                        preposition_string = " ".join([word for word,pos in preposition])
+                        preceding_string = " ".join(sentence_words[:start_pos])
+                        following_string = " ".join(sentence_words[end_pos+1:])
+                        construction["pre"].append((preceding_string,preposition_string,following_string))
+                        preposition = []
+            elif len(tag) == 2:
+                if ((tag == "ae")
+                    or tag =="aþ"
+                    or tag == "aþe"
+                    or tag == "aþm"):
+                    preposition.append((word,pos))
+                     
             # Detect interesting words
             if lemma in interesting_list:
                 qualitative_constr[lemma].append((tag, sentence_string))
@@ -89,8 +110,10 @@ def collect_counts(sentences, interesting_list):
     io.write_interesting_words_csv(qualitative_constr, "interesting_output")
     io.write_word_csv(construction["gen_common_noun"], "genitive_common_noun",1000)
     io.write_word_csv(construction["dat_common_noun"], "dative_common_noun",1000)
+    io.write_word_csv(construction["pre_common_noun"], "preposition_common_noun",1000)
     io.write_construction_csv(construction["gen"], "Genitive",1000)
     io.write_construction_csv(construction["dat"], "Dative",1000)
+    io.write_construction_csv(construction["pre"], "Preposition",1000)
     #io.write_construction_pdf(construction["gen"], "Genitive",1000)
     
     # Output entries from interesting list that have not been found in corpus
