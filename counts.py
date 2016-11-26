@@ -24,24 +24,31 @@ def collect_counts(sentences, interesting_list):
     constr_func = defaultdict(lambda: defaultdict(list))
     qualitative_constr = defaultdict(list)
      
+     
+    # create dictionaries for each type
     genitive = []
     dative = []
     preposition = []
+    
+    #go through each sentence
     for sentence in sentences:
         sentence_words = [word for lemma,tag,word in sentence]
         sentence_string = " ".join(sentence_words)
         for pos in range(0,len(sentence)):
             lemma,tag,word = sentence[pos]
-            # Detect genitive nouns
+            # Detect nouns for common list
             if len(tag) > 3:
+                # Detect genitive nouns
                 if (tag[0] == "n" and tag[3]=="e"):
                     preceding_string = " ".join(sentence_words[:pos])
                     following_string = " ".join(sentence_words[pos+1:])
                     construction["gen_common_noun"].append((lemma,tag,preceding_string,word,following_string))
-                elif ((tag[0]== "n") and ((tag[3] == "þ"))):
+                # Detect dative nouns
+                elif ((len(tag) > 4) and (tag[0]== "n") and ((tag[3] + tag[4]) == "þ")):
                     preceding_string = " ".join(sentence_words[:pos])
                     following_string = " ".join(sentence_words[pos+1:])
                     construction["dat_common_noun"].append((lemma,tag,preceding_string,word,following_string))
+                # Detect preposition  nouns
                 elif (tag == "ae"
                     or tag =="aþ"
                     or tag == "aþe"
@@ -50,24 +57,37 @@ def collect_counts(sentences, interesting_list):
                     following_string = " ".join(sentence_words[pos+1:])
                     construction["pre_common_noun"].append((lemma,tag,preceding_string,word,following_string))    
             
+            # Detect dative, where in some positions this dative can be found on an other position
+            if ('þ' in tag):
+                if ((tag[0] == "n" and ((tag[3] + tag[4])) =="þ")
+                    or (tag[0] == "f" and ((tag[4] + tag[5])) =="þ")    # number dative
+                    or (tag[0] == "l" and ((tag[3] + tag[4])) =="þ")
+                    or (tag[0] == "g" and ((tag[3] + tag[4])) =="þ")
+                    or (tag[0] == "t" and ((tag[4] + tag[5])) =="þ")
+                    or (word == "og" and len(dative) > 0)): # 'og' may occur in dative, as second or later
+                        # TODO: look at excluding gen. pronoun "hans" from list
+                        dative.append((word,pos))
+                else:
+                    # If a dative has built up, it is now ended
+                    if len(dative) > 0:
+                        start_pos = dative[0][1]
+                        end_pos = dative[-1][1]
+                        dative_string = " ".join([word for word,pos in dative])
+                        preceding_string = " ".join(sentence_words[:start_pos])
+                        following_string = " ".join(sentence_words[end_pos+1:])
+                        construction["dat"].append((preceding_string,dative_string,following_string))
+                        dative = []
+                        
             # Detect genitive
-            if len(tag) > 3 :
+            elif len(tag) > 3 :
                 if ((tag [0]== "n") and (tag[3]=="e") # noun genitive
                     or (tag[0] == "f" and tag[4]=="e")    # pronoun genitive
                     or (tag[0] == "l" and tag[3]=="e")    # adjective genitive
                     or (tag[0] == "g" and tag[3]=="e")    # article genitive
                     or (tag[0] == "t" and tag[4]=="e")    # number genitive
-                    or (word == "og" and len(genitive) >0)): # 'og' may occur in genitive, as second or later
+                    or (word == "og" and len(genitive) > 0)): # 'og' may occur in genitive, as second or later
                         # TODO: look at excluding gen. pronoun "hans" from list
                         genitive.append((word,pos))
-                elif ((tag[0]== "n") and ((tag[3] == "þ")) # noun dative
-                    or (tag[0] == "f" and tag[4]=="þ")    # pronoun dative
-                    or (tag[0] == "l" and tag[3]=="þ")    # adjective dative
-                    or (tag[0] == "g" and tag[3]=="þ")    # article dative
-                    or (tag[0] == "t" and tag[4]=="þ")    # number dative
-                    or (word == "og" and len(dative) >0)): # 'og' may occur in dative, as second or later
-                        # TODO: look at excluding gen. pronoun "hans" from list
-                        dative.append((word,pos))
                 else:
                     # If a genitive has built up, it is now ended
                     if len(genitive) > 0:
@@ -78,15 +98,8 @@ def collect_counts(sentences, interesting_list):
                         following_string = " ".join(sentence_words[end_pos+1:])
                         construction["gen"].append((preceding_string,genitive_string,following_string))
                         genitive = []
-                    # If a dative has built up, it is now ended
-                    elif len(dative) > 0:
-                        start_pos = dative[0][1]
-                        end_pos = dative[-1][1]
-                        dative_string = " ".join([word for word,pos in dative])
-                        preceding_string = " ".join(sentence_words[:start_pos])
-                        following_string = " ".join(sentence_words[end_pos+1:])
-                        construction["dat"].append((preceding_string,dative_string,following_string))
-                        dative = []
+            
+            # Detect preposition
             elif len(tag) == 2:
                 if ((tag == "ae")
                     or tag =="aþ"
