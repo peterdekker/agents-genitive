@@ -34,6 +34,8 @@ def collect_counts(sentences, interesting_list):
     #go through each sentence
     for sentence in sentences:
         possessor_in_sentence = False
+        preposition_in_sentence = False
+        dative_in_sentence = False
         sentence_words = [word for lemma,tag,word in sentence]
         possessee_candidates = list(sentence)
         sentence_string = " ".join(sentence_words)
@@ -99,7 +101,26 @@ def collect_counts(sentences, interesting_list):
                         #following_string = " ".join(sentence_words[end_pos+1:])
                         #construction["dat"].append((preceding_string,dative_string,following_string))
                         #dative = []
-                        
+
+            if (u'þ' in tag):
+                if ((tag[0] == "n" and tag[3] == u"þ")
+                or (tag[0] == "f" and tag[4] == u"þ")
+                or (tag[0] == "l" and tag[3] == u"þ")
+                or (tag[0] == "g" and tag[3] == u"þ")
+                or (tag[0] == "t" and tag[4] == u"þ")):
+                    dative_in_sentence = True
+
+            if dative_in_sentence:
+                if ((tag == "ae"
+                or tag == u"aþ"
+                or tag == u"aþe"
+                or tag == u"aþm")
+                and (word in [u"til",u"í",u"á",u"af",u"frá",u"hjá",u"að"])):
+                    preposition_in_sentence = True
+                    preceding_string = " ".join(sentence_words[:pos-1])
+                    following_string = " ".join(sentence_words[pos+1:])
+                    construction["pre"].append((preceding_string,word, following_string))
+
             # Detect genitive
             if len(tag) > 3 :
                 if ((tag [0]== "n") and (tag[3]=="e") # noun genitive
@@ -125,20 +146,16 @@ def collect_counts(sentences, interesting_list):
                         construction["gen"].append((preceding_string,genitive_string,following_string))
                         genitive = []
             
-            # Detect preposition
-            if ((tag == "ae"
-                or tag == u"aþ"
-                or tag == u"aþe"
-                or tag == u"aþm")
-                and word in [u"á",u"hjá",u"frá"]):
-                preposition.append((word,pos))
-                start_pos = preposition[0][1]
-                end_pos = preposition[-1][1]
-                preposition_string = " ".join([word for word,pos in preposition])
-                preceding_string = " ".join(sentence_words[:start_pos])
-                following_string = " ".join(sentence_words[end_pos+1:])
-                construction["pre"].append((preceding_string,preposition_string,following_string))
-                preposition = []
+            # if ((lemma == (u"til"|u"í"|u"á"|u"af"|u"frá"):
+            #         preposition_in_sentence = True
+            #         preposition.append((word,pos))
+            #         start_pos = preposition[0][1]
+            #         end_pos = preposition[-1][1]
+            #         preposition_string = " ".join([word for word,pos in preposition])
+            #         preceding_string = " ".join(sentence_words[:start_pos])
+            #         following_string = " ".join(sentence_words[end_pos+1:])
+            #         construction["pre"].append((preceding_string,preposition_string,following_string))
+            #         preposition = []
             
             # Detect linking pronoun
             # First, find the linking pronoun itself
@@ -213,7 +230,16 @@ def collect_counts(sentences, interesting_list):
                     preceding_string = " ".join(sentence_words[:pos])
                     following_string = " ".join(sentence_words[pos+1:])
                     construction["interesting_possessee"].append((lemma,tag,preceding_string,word,following_string))
-    
+        # At end of sentence, look if there was a preposition in the sentence
+        if preposition_in_sentence and dative_in_sentence:
+             for lemma,tag,word in possessee_candidates:
+                lemma_cmp = lemma.encode('utf-8')
+                if lemma_cmp in interesting_list:
+                    pos = sentence.index((lemma,tag,word)) # Find real position in sentence
+                    preceding_string = " ".join(sentence_words[:pos])
+                    following_string = " ".join(sentence_words[pos+1:])
+                    construction["interesting_preposition"].append((lemma,tag,preceding_string,word,following_string))
+
     
     # Write to files
     io.write_construction_csv(construction["gen"], "Genitive",1000)
@@ -222,7 +248,7 @@ def collect_counts(sentences, interesting_list):
     
     io.write_word_csv(construction["interesting_possessor"], "interesting_possessor",2000, sort_on_lemma=True)
     io.write_word_csv(construction["interesting_possessee"], "interesting_possessee",2000, sort_on_lemma=True)
-    
+    io.write_word_csv(construction["interesting_preposition"], "interesting_preposition",2000, sort_on_lemma=True)
 
 if __name__ == "__main__":
     data = io.read_data("Saga")
