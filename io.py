@@ -6,6 +6,8 @@ import xml.etree.ElementTree as et
 from unidecode import unidecode
 import cPickle as pickle
 import subprocess
+import random
+random.seed(10)
 
 def read_interesting_list(path):
     interesting = []
@@ -14,11 +16,14 @@ def read_interesting_list(path):
             interesting.append(line.strip())
     return interesting
 
-def write_word_csv(tokens_list, label, cutoff=None):
+def write_word_csv(tokens_list, label, cutoff=None, sort_on_lemma=False):
     filename = label.lower() + ".csv"
     file_output = "LEMMA,TAG,SENTENCE,,\n"
     if cutoff is not None:
-        tokens_list = tokens_list[:cutoff]
+        if cutoff < len(tokens_list):
+            tokens_list = random.sample(tokens_list,cutoff)
+    if sort_on_lemma:
+        tokens_list = sorted(tokens_list, key=lambda x: x[0])
     for lemma,tag,preceding,word,following in tokens_list:
         file_output += lemma + "," + tag + "," + preceding + "," + word + "," + following + "\n"
     with open(filename,"w") as construction_file:
@@ -28,12 +33,44 @@ def write_construction_csv(tokens_list, label, cutoff=None):
     filename = label.lower() + ".csv"
     file_output = "," + label.upper()+ ",\n"
     if cutoff is not None:
-        tokens_list = tokens_list[:cutoff]
+        if cutoff < len(tokens_list):
+            tokens_list = random.sample(tokens_list,cutoff)
     for preceding,construction,following in tokens_list:
         file_output += preceding + "," + construction + "," + following + "\n"
     with open(filename,"w") as construction_file:
         construction_file.write(file_output.encode('utf-8'))
-        
+
+def write_word_pdf(tokens_list, label, cutoff=None, sort_on_lemma=False):
+    filename = label.lower() + ".tex"
+    file_output =  "\\documentclass{article}\n"
+    file_output += "\\usepackage[T1]{fontenc}\n"
+    file_output += "\\usepackage[utf8x]{inputenc}\n"
+    file_output += "\\usepackage{longtable}\n"
+    file_output += "\\usepackage[left=3cm, right=3cm]{geometry}"
+    file_output += "\\title{" + label.replace("_","\_") + "}\n"
+    file_output += "\\date{}\n"
+    file_output += "\\begin{document}\n"
+    file_output += "\\maketitle\n"
+    file_output += "\\noindent\n"
+    file_output += "\\begin{longtable}{p{1cm}|p{1cm}|p{1cm}|p{13cm}}\n"
+    file_output += "ID&Lemma&Tag&Sentence\\\\\n"
+    file_output += "\\hline\n"
+    if cutoff is not None:
+        tokens_list = random.sample(tokens_list,cutoff)
+    if sort_on_lemma:
+        tokens_list = sorted(tokens_list, key=lambda x: x[0])
+    i=2
+    for lemma,tag,preceding,word,following in tokens_list:
+        file_output += str(i) + "&" + lemma + "&" + tag + "&" + preceding + " \\textbf{" + word + "} " + following + "\\\\\n"
+        file_output += "\\hline\n"
+        i+=1
+    file_output += "\\end{longtable}\n"
+    file_output += "\\end{document}\n"
+    with open(filename,"w") as construction_file:
+        construction_file.write(file_output.encode('utf-8'))
+    call_string = ["xelatex",filename]
+    subprocess.call(call_string)
+
 def write_construction_pdf(tokens_list, label, cutoff=None):
     filename = label.lower() + ".tex"
     file_output =  "\\documentclass{article}\n"
@@ -50,7 +87,7 @@ def write_construction_pdf(tokens_list, label, cutoff=None):
     file_output += "ID&Sentence\\\\\n"
     file_output += "\\hline\n"
     if cutoff is not None:
-        tokens_list = tokens_list[:cutoff]
+        tokens_list = random.sample(tokens_list,cutoff)
     i=2
     for preceding,construction,following in tokens_list:
         file_output += str(i) + "&" + preceding + " \\textbf{" + construction + "} " + following + "\\\\\n"
