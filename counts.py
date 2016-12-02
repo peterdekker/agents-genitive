@@ -122,6 +122,8 @@ def collect_counts(sentences, interesting_list):
                     construction["pre"].append((preceding_string,word, following_string))
 
             # Detect genitive
+            ending = ""
+
             if len(tag) > 3 :
                 if ((tag [0]== "n") and (tag[3]=="e") # noun genitive
                     or (tag[0] == "f" and tag[4]=="e")    # pronoun genitive
@@ -133,6 +135,20 @@ def collect_counts(sentences, interesting_list):
                         genitive.append((word,pos))
                         possessee_candidates.remove((lemma,tag,word))
                         possessor_in_sentence = True
+
+                        # TODO count
+                        if (word.endswith(("ins"))):
+                            ending = "ins"
+                        elif (word.endswith(("nar"))):
+                            ending = "nar"
+                        elif (word.endswith(("s"))):
+                            ending = "s"
+                        elif (word.endswith(("ar"))):
+                            ending = "ar"
+                        elif (word.endswith(("a"))):
+                            ending = "a"
+                        elif (word.endswith(("ins"))):
+                            ending = "ins"
                         if lemma_cmp in interesting_list:
                             construction["interesting_possessor"].append((lemma,tag,preceding_string,word,following_string))
                 else:
