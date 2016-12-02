@@ -17,7 +17,9 @@ def check_missing(part, complete):
         for m in missing:
             print m
         
-    
+
+
+
 def collect_counts(sentences, interesting_list):
     construction = defaultdict(list)
     function = defaultdict(list)
@@ -30,7 +32,13 @@ def collect_counts(sentences, interesting_list):
     genitive = []
     dative = []
     preposition = []
-    
+
+    ending_ins = 0
+    ending_nar = 0
+    ending_s = 0
+    ending_ar = 0
+    ending_a = 0
+
     #go through each sentence
     for sentence in sentences:
         possessor_in_sentence = False
@@ -136,19 +144,17 @@ def collect_counts(sentences, interesting_list):
                         possessee_candidates.remove((lemma,tag,word))
                         possessor_in_sentence = True
 
-                        # TODO count
+                        # count suffixes
                         if (word.endswith(("ins"))):
-                            ending = "ins"
+                            ending_ins += 1
                         elif (word.endswith(("nar"))):
-                            ending = "nar"
+                            ending_nar += 1
                         elif (word.endswith(("s"))):
-                            ending = "s"
+                            ending_s += 1
                         elif (word.endswith(("ar"))):
-                            ending = "ar"
+                            ending_ar += 1
                         elif (word.endswith(("a"))):
-                            ending = "a"
-                        elif (word.endswith(("ins"))):
-                            ending = "ins"
+                            ending_a += 1
                         if lemma_cmp in interesting_list:
                             construction["interesting_possessor"].append((lemma,tag,preceding_string,word,following_string))
                 else:
@@ -255,7 +261,12 @@ def collect_counts(sentences, interesting_list):
                     preceding_string = " ".join(sentence_words[:pos])
                     following_string = " ".join(sentence_words[pos+1:])
                     construction["interesting_preposition"].append((lemma,tag,preceding_string,word,following_string))
-
+    # Print genitive suffixes
+    print "-ins: " + str(ending_ins)
+    print "-nar: " + str(ending_nar)
+    print "-s: " + str(ending_s)
+    print "-ar: " + str(ending_ar)
+    print "-a: " + str(ending_a)
     
     # Write to files
     io.write_construction_csv(construction["gen"], "Genitive",1000)
@@ -265,6 +276,9 @@ def collect_counts(sentences, interesting_list):
     io.write_word_csv(construction["interesting_possessor"], "interesting_possessor",2000, sort_on_lemma=True)
     io.write_word_csv(construction["interesting_possessee"], "interesting_possessee",2000, sort_on_lemma=True)
     io.write_word_csv(construction["interesting_preposition"], "interesting_preposition",2000, sort_on_lemma=True)
+
+
+
 
 if __name__ == "__main__":
     data = io.read_data("Saga")
