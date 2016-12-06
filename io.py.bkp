@@ -16,20 +16,60 @@ def read_interesting_list(path):
             interesting.append(line.strip())
     return interesting
 
-def write_construction_csv(tokens_list, label, cutoff=None):
-    cutoff_text = ""
+def write_word_csv(tokens_list, label, cutoff=None, sort_on_lemma=False):
+    filename = label.lower() + ".csv"
+    file_output = "LEMMA,TAG,SENTENCE,,\n"
     if cutoff is not None:
-        cutoff_text = "-" + str(cutoff)
         if cutoff < len(tokens_list):
             tokens_list = random.sample(tokens_list,cutoff)
-    filename = label.lower() + cutoff_text + ".csv"
-    
-    # lemma,tag,preceding_string,word,following_string, construction_name, ending, role, personal
-    file_output = "LEMMA,TAG,PRECEDING,CONSTRUCTION,FOLLOWING,CONSTRUCTION_NAME,ENDING,ROLE,PERSONAL_NAME,ANIMACY,ALIENABILITY\n"
-    for lemma,tag,preceding_string,word,following_string, construction_name, ending, role, personal in tokens_list:
-        file_output += lemma + "," + tag + "," + preceding_string + "," + word + "," + following_string + "," + construction_name + "," + ending + "," + role + "," + personal + ",,\n"
+    if sort_on_lemma:
+        tokens_list = sorted(tokens_list, key=lambda x: x[0])
+    for lemma,tag,preceding,word,following in tokens_list:
+        file_output += lemma + "," + tag + "," + preceding + "," + word + "," + following + "\n"
     with open(filename,"w") as construction_file:
         construction_file.write(file_output.encode('utf-8'))
+
+def write_construction_csv(tokens_list, label, cutoff=None):
+    filename = label.lower() + ".csv"
+    file_output = "," + label.upper()+ ",\n"
+    if cutoff is not None:
+        if cutoff < len(tokens_list):
+            tokens_list = random.sample(tokens_list,cutoff)
+    for preceding,construction,following in tokens_list:
+        file_output += preceding + "," + construction + "," + following + "\n"
+    with open(filename,"w") as construction_file:
+        construction_file.write(file_output.encode('utf-8'))
+
+def write_word_pdf(tokens_list, label, cutoff=None, sort_on_lemma=False):
+    filename = label.lower() + ".tex"
+    file_output =  "\\documentclass{article}\n"
+    file_output += "\\usepackage[T1]{fontenc}\n"
+    file_output += "\\usepackage[utf8x]{inputenc}\n"
+    file_output += "\\usepackage{longtable}\n"
+    file_output += "\\usepackage[left=3cm, right=3cm]{geometry}"
+    file_output += "\\title{" + label.replace("_","\_") + "}\n"
+    file_output += "\\date{}\n"
+    file_output += "\\begin{document}\n"
+    file_output += "\\maketitle\n"
+    file_output += "\\noindent\n"
+    file_output += "\\begin{longtable}{p{1cm}|p{1cm}|p{1cm}|p{13cm}}\n"
+    file_output += "ID&Lemma&Tag&Sentence\\\\\n"
+    file_output += "\\hline\n"
+    if cutoff is not None:
+        tokens_list = random.sample(tokens_list,cutoff)
+    if sort_on_lemma:
+        tokens_list = sorted(tokens_list, key=lambda x: x[0])
+    i=2
+    for lemma,tag,preceding,word,following in tokens_list:
+        file_output += str(i) + "&" + lemma + "&" + tag + "&" + preceding + " \\textbf{" + word + "} " + following + "\\\\\n"
+        file_output += "\\hline\n"
+        i+=1
+    file_output += "\\end{longtable}\n"
+    file_output += "\\end{document}\n"
+    with open(filename,"w") as construction_file:
+        construction_file.write(file_output.encode('utf-8'))
+    call_string = ["xelatex",filename]
+    subprocess.call(call_string)
 
 def write_construction_pdf(tokens_list, label, cutoff=None):
     filename = label.lower() + ".tex"
@@ -59,6 +99,25 @@ def write_construction_pdf(tokens_list, label, cutoff=None):
         construction_file.write(file_output)
     call_string = ["xelatex",filename]
     subprocess.call(call_string)
+    
+
+def write_interesting_words_csv(qualitative_constr, label):
+    filename = label.lower() + ".csv"
+    qual_constr_count = {}
+    for lemma in qualitative_constr:
+        qual_constr_count[lemma] = len(qualitative_constr[lemma])
+    sorted_list = sorted(qual_constr_count.items(), key=lambda x: x[1], reverse=True)
+    
+    file_output = "LEMMA,TOTAL_COUNT,TAG,SENTENCE\n"
+    for lemma,count in sorted_list:
+        divisor = count/20
+        i = 1
+        for tag,sentence_words in qualitative_constr[lemma]:
+            if i % divisor == 0:
+                file_output += lemma + "," + str(count) + "," + tag + "," + sentence_words + "\n"
+            i+=1
+    with open(filename,"w") as interesting_output_file:
+        interesting_output_file.write(file_output)
 
 def read_data(corpus_directory):
     if(os.path.isfile('saga_sentences.p')):
