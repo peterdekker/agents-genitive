@@ -55,8 +55,14 @@ def extract_constructions_qualitative(sentences, interesting_list):
                         ending = "s"
                     elif (word.endswith(("ar"))):
                         ending = "ar"
+                    elif (word.endswith(("ur"))):
+                        ending = "ur"
+                    elif (word.endswith(("u"))):
+                        ending = "u"
                     elif (word.endswith(("a"))):
                         ending = "a"
+                    else:
+                        ending = "EMPTY"
                     if len(tag) == 6:
                         personal = "+PN"
                     construction.append((lemma,tag,preceding_string,word,following_string, construction_name, ending, role, personal))
@@ -73,16 +79,18 @@ def extract_constructions_qualitative(sentences, interesting_list):
                         role = "possessor"
                         personal = ""
                         construction_name = "pre"
-                        if (word.endswith("i")):
+                        if (word.endswith("um") or word.endswith("u")):
+                            ending = "u(m)"
+                        elif (word.endswith("nni")):
+                            ending = "nni"
+                        elif (word.endswith("i")):
                             ending = "i"
                         elif (word.endswith("u")):
                             ending = "u"
-                        elif (word.endswith("ja")):
-                            ending = "ja"
+                        elif (word.endswith("ur")):
+                            ending = "ur"
                         elif (word.endswith("a")):
                             ending = "a"
-                        elif (word.endswith("um")):
-                            ending = "um"
                         else:
                             ending = "EMPTY"
                         if len(tag) == 6:
