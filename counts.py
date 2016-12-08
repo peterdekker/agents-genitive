@@ -79,14 +79,12 @@ def extract_constructions_qualitative(sentences, interesting_list):
                         role = "possessor"
                         personal = ""
                         construction_name = "pre"
-                        if (word.endswith("um") or word.endswith("u")):
+                        if ((word.endswith("um")) or (word.endswith("u"))):
                             ending = "u(m)"
                         elif (word.endswith("nni")):
                             ending = "nni"
                         elif (word.endswith("i")):
                             ending = "i"
-                        elif (word.endswith("u")):
-                            ending = "u"
                         elif (word.endswith("ur")):
                             ending = "ur"
                         elif (word.endswith("a")):
