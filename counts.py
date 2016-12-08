@@ -73,16 +73,16 @@ def extract_constructions_qualitative(sentences, interesting_list):
                         role = "possessor"
                         personal = ""
                         construction_name = "pre"
-                        if (word.endswith("num") or word.endswith("nu")):
-                            ending = "nu(m)"
-                        elif (word.endswith("nni")):
-                            ending = "nni"
-                        elif (word.endswith("i")):
+                        if (word.endswith("i")):
                             ending = "i"
                         elif (word.endswith("u")):
                             ending = "u"
+                        elif (word.endswith("ja")):
+                            ending = "ja"
                         elif (word.endswith("a")):
                             ending = "a"
+                        elif (word.endswith("um")):
+                            ending = "um"
                         else:
                             ending = "EMPTY"
                         if len(tag) == 6:
