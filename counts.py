@@ -22,9 +22,6 @@ def check_missing(part, complete):
 
 def extract_constructions_qualitative(sentences, interesting_list):
     construction = []
-     
-     
-    # create dictionaries for each type
 
     #go through each sentence
     for sentence in sentences:
@@ -47,22 +44,24 @@ def extract_constructions_qualitative(sentences, interesting_list):
                     role = "possessor"
                     personal = ""
                     construction_name = "gen"
-                    if (word.endswith(("ins"))):
-                        ending = "ins"
-                    elif (word.endswith(("nar"))):
-                        ending = "nar"
+                    if (word.endswith("innar") or word.endswith("nnar") or word.endswith("nna") or word.endswith("ins") or word.endswith("ns")):
+                        ending = "DEF"
                     elif (word.endswith(("s"))):
                         ending = "s"
                     elif (word.endswith(("ar"))):
                         ending = "ar"
                     elif (word.endswith(("ur"))):
                         ending = "ur"
+                    elif (word.endswith(("na"))):
+                        ending = "na"
                     elif (word.endswith(("u"))):
                         ending = "u"
                     elif (word.endswith(("a"))):
                         ending = "a"
-                    else:
-                        ending = "EMPTY"
+                    elif (word.endswith(("i"))):
+                        ending = "i"
+                    elif (word.endswith(("r"))):
+                        ending = "r"
                     if len(tag) == 6:
                         personal = "+PN"
                     construction.append((lemma,tag,preceding_string,word,following_string, construction_name, ending, role, personal))
@@ -79,14 +78,14 @@ def extract_constructions_qualitative(sentences, interesting_list):
                         role = "possessor"
                         personal = ""
                         construction_name = "pre"
-                        if ((word.endswith("um")) or (word.endswith("u"))):
-                            ending = "u(m)"
-                        elif (word.endswith("nni")):
-                            ending = "nni"
+                        if (word.endswith("inni") or word.endswith("nni") or word.endswith("num") or word.endswith("nu")):
+                            ending = "DEF"
+                        elif (word.endswith("um")):
+                            ending = "um"
+                        elif (word.endswith("u")):
+                            ending = "u"
                         elif (word.endswith("i")):
                             ending = "i"
-                        elif (word.endswith("ur")):
-                            ending = "ur"
                         elif (word.endswith("a")):
                             ending = "a"
                         else:
