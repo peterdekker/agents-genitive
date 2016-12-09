@@ -24,12 +24,14 @@ def write_construction_csv(tokens_list, label, cutoff=None):
             tokens_list = random.sample(tokens_list,cutoff)
     filename = label.lower() + cutoff_text + ".csv"
     
-    # lemma,tag,preceding_string,word,following_string, construction_name, ending, role, personal
-    file_output = "LEMMA,TAG,PRECEDING,CONSTRUCTION,FOLLOWING,CONSTRUCTION_NAME,ENDING,ROLE,PERSONAL_NAME,ANIMACY,ALIENABILITY\n"
-    for lemma,tag,preceding_string,word,following_string, construction_name, ending, role, personal in tokens_list:
-        file_output += lemma + "," + tag + "," + preceding_string + "," + word + "," + following_string + "," + construction_name + "," + ending + "," + role + "," + personal + ",,\n"
+    # lemma,tag,preceding_string,word,following_string, construction_name, ending, personal
     with open(filename,"w") as construction_file:
+        file_output = "LEMMA,TAG,PRECEDING,CONSTRUCTION,FOLLOWING,CONSTRUCTION_NAME,ENDING,PERSONAL_NAME,ANIMACY,ALIENABILITY\n"
         construction_file.write(file_output.encode('utf-8'))
+        for lemma,tag,preceding_string,word,following_string, construction_name, ending, personal in tokens_list:
+            file_output = lemma + "," + tag + "," + preceding_string + "," + word + "," + following_string + "," + construction_name + "," + ending + "," + personal + ",,\n"
+        
+            construction_file.write(file_output.encode('utf-8'))
 
 def write_construction_pdf(tokens_list, label, cutoff=None):
     filename = label.lower() + ".tex"
