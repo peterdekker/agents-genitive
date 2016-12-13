@@ -9,7 +9,7 @@ import subprocess
 import random
 random.seed(10)
 
-def read_interesting_list(path):
+def read_list(path):
     interesting = []
     with open(path, "r") as interesting_file:
         for line in interesting_file:
@@ -34,7 +34,7 @@ def write_construction_csv(tokens_list, label, cutoff=None):
             construction_file.write(file_output.encode('utf-8'))
 
 def write_construction_pdf(tokens_list, label, cutoff=None):
-    filename = label.lower() + ".tex"
+    filename = "pdf/" + label.lower() + ".tex"
     file_output =  "\\documentclass{article}\n"
     file_output += "\\usepackage[T1]{fontenc}\n"
     file_output += "\\usepackage[utf8x]{inputenc}\n"
@@ -51,15 +51,22 @@ def write_construction_pdf(tokens_list, label, cutoff=None):
     if cutoff is not None:
         tokens_list = random.sample(tokens_list,cutoff)
     i=2
-    for preceding,construction,following in tokens_list:
-        file_output += str(i) + "&" + preceding + " \\textbf{" + construction + "} " + following + "\\\\\n"
+    for function,construction,sentence in tokens_list:
+        file_output += str(i) + "&"
+        for word in sentence:
+            if word == function or word == construction:
+                file_output += " \\textbf{" + word + "} "
+            else:
+                file_output += " " + word + " "
+        file_output += "\\\\\n"
         file_output += "\\hline\n"
         i+=1
     file_output += "\\end{longtable}\n"
     file_output += "\\end{document}\n"
+    file_output = file_output.encode('utf-8')
     with open(filename,"w") as construction_file:
         construction_file.write(file_output)
-    call_string = ["xelatex",filename]
+    call_string = ["pdflatex",filename, "-output-directory", "pdf"]
     subprocess.call(call_string)
 
 def read_data(corpus_directory):
