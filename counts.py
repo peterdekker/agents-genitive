@@ -15,7 +15,7 @@ def count_dict(dct, sorted_list = False):
     
     return count
 
-def count_constructions_quantitative(sentences, verb_list, adj_list, adv_list):
+def count_quantitative(sentences, verb_list, adj_list, adv_list):
     construction = defaultdict(list)
     function = defaultdict(list)
     function_construction = defaultdict(list)
@@ -25,42 +25,60 @@ def count_constructions_quantitative(sentences, verb_list, adj_list, adv_list):
 
     for sentence in sentences:
         verb_before = ""
+        pos_verb_before = 0
+        
         adj_before = ""
+        pos_adj_before = 0
+        
         adv_before = ""
+        pos_adv_before = 0
+        
         pre_before = ""
+        pos_pre_before = 0
+        
         sentence_words = [word for lemma,tag,word in sentence]
         sentence_string = " ".join(sentence_words)
         for pos in range(0,len(sentence)):
             lemma,tag,word = sentence[pos]
             lemma_cmp=lemma.encode('utf-8')
             
-            ### Functions
+            ###### Functions
             # Match verb
             if (tag[0] == "s"):
                 if lemma_cmp in verb_list:
                     verb_before = word
+                    pos_verb_before = pos
             
             # Match adjective (nom or acc)
             if (tag[0] == "l" and (tag[3]=="n" or tag[3]=="o")):
                 if lemma_cmp in adj_list:
                     adj_before = word
+                    pos_adj_before = pos
             
             # Match adverb
             if (tag.startswith("aa")):
                 if lemma_cmp in adv_list:
                     adv_before = word
+                    pos_adv_before = pos
             
-            # TODO: Match prepositions
+            # Match prepositions governing dative/genitive
+            if (tag == u"aþ"
+            or tag == u"ae"):
+                pre_before = word
+                pos_pre_before = pos
             
-            ### Constructions
+            ###### Constructions
             # Now, look which constructions occur after a certain function
             
-            # Preposition
-            if ((tag == u"aþ"
+            # Preposition (all)
+            if (tag == u"aþ"
             or tag == u"aþe"
-            or tag == u"aþm")
-            and (word in [u"til",u"í",u"á",u"af",u"frá",u"hjá",u"að"])):
-                if len(verb_before) or len(adj_before) or len(adv_before):
+            or tag == u"aþm"
+            or tag == u"ae"
+            or tag == u"ao"):
+                if ((len(verb_before) and pos-pos_pre_before<=5)
+                or (len(adj_before) and pos-pos_adj_before<=5)
+                or (len(adv_before) and pos-pos_adv_before<=5)):
                     construction["pre"].append(word)
                     if len(verb_before):
                         function["verb"].append(verb_before)
@@ -77,7 +95,10 @@ def count_constructions_quantitative(sentences, verb_list, adj_list, adv_list):
             
             # Genitive noun
             elif (len(tag) > 3 and tag[0] == "n" and tag[3]=="e"):
-                if (len(verb_before) or len(adj_before) or len(adv_before) or len(pre_before)):
+                if ((len(verb_before) and pos-pos_pre_before<=5)
+                or (len(adj_before) and pos-pos_adj_before<=5)
+                or (len(adv_before) and pos-pos_adv_before<=5)
+                or (len(pre_before) and pos-pos_pre_before<=5)):
                     if (len(tag)==5 and tag[4]=="g"):
                         # ins, ns, innar, nnar, nna
                         if (word.endswith("innar")):
@@ -129,7 +150,10 @@ def count_constructions_quantitative(sentences, verb_list, adj_list, adv_list):
             
             # Dative noun
             elif ((len(tag) > 3) and (tag[0]== "n") and (tag[3] == u"þ")):
-                if (len(verb_before) or len(adj_before) or len(adv_before) or len(pre_before)):
+                if ((len(verb_before) and pos-pos_pre_before<=5)
+                or (len(adj_before) and pos-pos_adj_before<=5)
+                or (len(adv_before) and pos-pos_adv_before<=5)
+                or (len(pre_before) and pos-pos_pre_before<=5)):
                     if (len(tag)==5 and tag[4]=="g"):
                         # num, inni, nni, nu
                         if (word.endswith("inni")):
@@ -177,16 +201,24 @@ def count_constructions_quantitative(sentences, verb_list, adj_list, adv_list):
     
     print "FUNCTION"
     print counts_function
+    print sum(x[1] for x in counts_function)
     print
     print "CONSTRUCTION"
     print counts_construction
+    print sum(x[1] for x in counts_construction)
     print
     print "FUNCTION,CONSTRUCTION"
     print counts_f_c
+    print sum(x[1] for x in counts_f_c)
     print
+    
+    # Write first 100 examples for every combination to pdf, to check
     for f,c in function_construction:
         label = f + "," + c
-        io.write_construction_pdf(function_construction[(f,c)], label)
+        io.write_construction_pdf(function_construction[(f,c)][:100], label)
+    io.dir_cleanup()
+    return counts_function, counts_construction, counts_f_c
+    
             
 
 def extract_constructions_qualitative(sentences, interesting_list):
@@ -343,8 +375,11 @@ if __name__ == "__main__":
     #interesting_list = io.read_list("icelandic-interesting-modified.txt") + io.read_list("icelandic-interesting-names.txt")
     #extract_constructions_qualitative(data, interesting_list)
     
+    #count_qualitative
+    
     # Quantitative analysis
     verb_list = io.read_list("verbs_automatic.txt")
     adj_list = io.read_list("adjectives_automatic.txt")
     adv_list = io.read_list("adverbs_automatic.txt")
-    count_constructions_quantitative(data, verb_list, adj_list, adv_list)
+    counts_function, counts_construction, counts_f_c = count_quantitative(data, verb_list, adj_list, adv_list)
+    # compute_probabilities

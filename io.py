@@ -66,8 +66,11 @@ def write_construction_pdf(tokens_list, label, cutoff=None):
     file_output = file_output.encode('utf-8')
     with open(filename,"w") as construction_file:
         construction_file.write(file_output)
-    call_string = ["pdflatex",filename, "-output-directory", "pdf"]
+    call_string = ["texfot","pdflatex", "-output-directory", "pdf", filename]
     subprocess.call(call_string)
+
+def dir_cleanup():
+    subprocess.call("rm pdf/*.aux pdf/*.log pdf/*.tex", shell=True)
 
 def read_data(corpus_directory):
     if(os.path.isfile('saga_sentences.p')):
