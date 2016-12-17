@@ -15,7 +15,7 @@ def count_dict(dct, sorted_list = False):
     
     return count
 
-def count_quantitative(sentences, verb_list, adj_list, adv_list):
+def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False):
     construction = defaultdict(list)
     function = defaultdict(list)
     function_construction = defaultdict(list)
@@ -213,10 +213,11 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list):
     print
     
     # Write first 100 examples for every combination to pdf, to check
-    for f,c in function_construction:
-        label = f + "," + c
-        io.write_construction_pdf(function_construction[(f,c)][:100], label)
-    io.dir_cleanup()
+    if write_pdf:
+        for f,c in function_construction:
+            label = f + "," + c
+            io.write_construction_pdf(function_construction[(f,c)][:100], label)
+        io.dir_cleanup()
     return counts_function, counts_construction, counts_f_c
     
             
@@ -365,21 +366,35 @@ def extract_constructions_qualitative(sentences, interesting_list):
     # Write to files
     io.write_construction_csv(construction, "qualitative",2000)
 
-
-
-
+def count_qualitative(qual_entries):
+    construction = defaultdict(int)
+    function = defaultdict(int)
+    function_construction = defaultdict(int)
+    
+    for e in qual_entries:
+        features_construction = (e["construction"],e["ending"])
+        features_function = (e["animacy_possessor"], e["animacy_possessee"], e["alienability"])
+        
+        construction[features_construction] += 1
+        function[features_function] +=1
+        function_construction[(features_construction, features_function)] +=1
+    return construction, function, function_construction
 if __name__ == "__main__":
-    data = io.read_data("Saga")
+    data = io.read_corpus("Saga")
     
     # Qualitative analysis: extract occurrences of interesting words in corpus, which can be manually annotated
     #interesting_list = io.read_list("icelandic-interesting-modified.txt") + io.read_list("icelandic-interesting-names.txt")
     #extract_constructions_qualitative(data, interesting_list)
     
-    #count_qualitative
     
     # Quantitative analysis
     verb_list = io.read_list("verbs_automatic.txt")
     adj_list = io.read_list("adjectives_automatic.txt")
     adv_list = io.read_list("adverbs_automatic.txt")
     counts_function, counts_construction, counts_f_c = count_quantitative(data, verb_list, adj_list, adv_list)
+    
+    # Count qualitative, manually annotated, constructions
+    #qual_entries = io.read_qualitative("qualitative-icelandic-justin.csv")
+    #counts_function_qual, counts_construction_qual, counts_f_c_qual = count_qualitative(qual_entries)
+    #print sorted(counts_f_c_qual.items(), key=lambda x: x[1], reverse=True)
     # compute_probabilities

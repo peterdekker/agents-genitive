@@ -72,7 +72,7 @@ def write_construction_pdf(tokens_list, label, cutoff=None):
 def dir_cleanup():
     subprocess.call("rm pdf/*.aux pdf/*.log pdf/*.tex", shell=True)
 
-def read_data(corpus_directory):
+def read_corpus(corpus_directory):
     if(os.path.isfile('saga_sentences.p')):
         with open('saga_sentences.p', 'rb') as saga_pickle:
             sentences = pickle.load(saga_pickle)
@@ -113,3 +113,52 @@ def read_data(corpus_directory):
         with open("saga_sentences.p","wb") as saga_pickle:
             pickle.dump(sentences, saga_pickle)
     return sentences
+    
+def read_qualitative(path):
+    entries = []
+    with open(path, "r") as qfile:
+        l = 0
+        for line in qfile:
+            l+=1
+            if l==1:
+                l+=1
+                continue
+            split_line = line.split(",")
+            # Remove spaces
+            split_line = [x.strip() for x in split_line]
+            # lines with X not taken into account
+            if split_line[11] != "X":
+                # Remove entries which have not been filled in
+                if (split_line[8] != ""
+                and split_line[9] != ""
+                and split_line[10] != ""):
+                    # Code for animacy possessor
+                    if split_line[8] == "Y":
+                        animacy_possessor = "+A"
+                        if split_line[7] == "+PN":
+                            animacy_possessor += "+PN"
+                    else:
+                        animacy_possessor = "-A"
+                    
+                    # Code for animacy possessee
+                    if split_line[9] == "Y":
+                        animacy_possessee = "+A"
+                    else:
+                        animacy_possessee = "-A"
+                        
+                    # Code for alienability (possessor)
+                    if split_line[10] == "Y":
+                        alienability = "+ali"
+                    else:
+                        alienability = "-ali"
+                    entry = {
+                    "construction" : split_line[5],
+                    "ending": split_line[6],
+                    "animacy_possessor": animacy_possessor,
+                    "animacy_possessee": animacy_possessee,
+                    "alienability": alienability
+                    }
+                    entries.append(entry)
+        print "# lines: " + str(l)
+        print "# entries: " + str(len(entries))
+    return entries
