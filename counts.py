@@ -6,12 +6,10 @@ from collections import defaultdict
 
 import io
 
-def count_dict(dct, sorted_list = False):
+def count_dict(dct):
     count = {}
     for key in dct:
         count[key] = len(dct[key])
-    if sorted_list:
-        count = sorted(count.items(), key=lambda x: x[1], reverse=True)
     
     return count
 
@@ -70,27 +68,28 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False
             ###### Constructions
             # Now, look which constructions occur after a certain function
             
-            # Preposition (all)
-            if (tag == u"aþ"
-            or tag == u"aþe"
-            or tag == u"aþm"
+            # Possessive preposition (all)
+            if ((tag == u"aþ"
             or tag == u"ae"
-            or tag == u"ao"):
+            or tag == u"aþe"
+            or tag == u"aþm")
+            and (word in [u"til",u"í",u"á",u"af",u"frá",u"hjá",u"að"])):
                 if ((len(verb_before) and pos-pos_pre_before<=5)
                 or (len(adj_before) and pos-pos_adj_before<=5)
                 or (len(adv_before) and pos-pos_adv_before<=5)):
-                    construction["pre"].append(word)
+                    features_construction = ("pre",word)
+                    construction[features_construction].append(word)
                     if len(verb_before):
                         function["verb"].append(verb_before)
-                        function_construction[("verb","pre")].append((verb_before,word, sentence_words))
+                        function_construction[("verb",features_construction)].append((verb_before,word, sentence_words))
                         verb_before = ""
                     elif len(adj_before):
                         function["adj"].append(adj_before)
-                        function_construction[("adj","pre")].append((adj_before,word, sentence_words))
+                        function_construction[("adj",features_construction)].append((adj_before,word, sentence_words))
                         adj_before = ""
                     elif len(adv_before):
                         function["adv"].append(adv_before)
-                        function_construction[("adv","pre")].append((adv_before,word, sentence_words))
+                        function_construction[("adv",features_construction)].append((adv_before,word, sentence_words))
                         adv_before = ""
             
             # Genitive noun
@@ -129,23 +128,23 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False
                         ending = "i"
                     elif (word.endswith(("r"))):
                         ending = "r"
-                    gen_category = "gen-" + ending
-                    construction[gen_category].append(word)
+                    features_construction = ("gen", ending)
+                    construction[features_construction].append(word)
                     if len(verb_before):
                         function["verb"].append(verb_before)
-                        function_construction[("verb",gen_category)].append((verb_before,word, sentence_words))
+                        function_construction[("verb",features_construction)].append((verb_before,word, sentence_words))
                         verb_before = ""
                     elif len(adj_before):
                         function["adj"].append(adj_before)
-                        function_construction[("adj",gen_category)].append((adj_before,word, sentence_words))
+                        function_construction[("adj",features_construction)].append((adj_before,word, sentence_words))
                         adj_before = ""
                     elif len(adv_before):
                         function["adv"].append(adv_before)
-                        function_construction[("adv",gen_category)].append((adv_before,word, sentence_words))
+                        function_construction[("adv",features_construction)].append((adv_before,word, sentence_words))
                         adv_before = ""
                     elif len(pre_before):
                         function["pre"].append(pre_before)
-                        function_construction[("pre",gen_category)].append((pre_before,word, sentence_words))
+                        function_construction[("pre",features_construction)].append((pre_before,word, sentence_words))
                         pre_before = ""
             
             # Dative noun
@@ -176,41 +175,28 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False
                         ending = "a"
                     else:
                         ending = "EMPTY"
-                    dat_category = "dat-" + ending
-                    construction[dat_category].append(word)
+                    features_construction = ("dat",ending)
+                    construction[features_construction].append(word)
                     if len(verb_before):
                         function["verb"].append(verb_before)
-                        function_construction[("verb",dat_category)].append((verb_before,word, sentence_words))
+                        function_construction[("verb",features_construction)].append((verb_before,word, sentence_words))
                         verb_before = ""
                     elif len(adj_before):
                         function["adj"].append(adj_before)
-                        function_construction[("adj",dat_category)].append((adj_before,word, sentence_words))
+                        function_construction[("adj",features_construction)].append((adj_before,word, sentence_words))
                         adj_before = ""
                     elif len(adv_before):
                         function["adv"].append(adv_before)
-                        function_construction[("adv",dat_category)].append((adv_before,word, sentence_words))
+                        function_construction[("adv",features_construction)].append((adv_before,word, sentence_words))
                         adv_before = ""
                     elif len(pre_before):
                         function["pre"].append(pre_before)
-                        function_construction[("pre",dat_category)].append((pre_before,word, sentence_words))
+                        function_construction[("pre",features_construction)].append((pre_before,word, sentence_words))
                         pre_before = ""
     
-    counts_function = count_dict(function, sorted_list = True)
-    counts_construction = count_dict(construction, sorted_list = True)
-    counts_f_c = count_dict(function_construction, sorted_list = True)
-    
-    print "FUNCTION"
-    print counts_function
-    print sum(x[1] for x in counts_function)
-    print
-    print "CONSTRUCTION"
-    print counts_construction
-    print sum(x[1] for x in counts_construction)
-    print
-    print "FUNCTION,CONSTRUCTION"
-    print counts_f_c
-    print sum(x[1] for x in counts_f_c)
-    print
+    count_function = count_dict(function)
+    count_construction = count_dict(construction)
+    count_f_c = count_dict(function_construction)
     
     # Write first 100 examples for every combination to pdf, to check
     if write_pdf:
@@ -218,7 +204,7 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False
             label = f + "," + c
             io.write_construction_pdf(function_construction[(f,c)][:100], label)
         io.dir_cleanup()
-    return counts_function, counts_construction, counts_f_c
+    return count_function, count_construction, count_f_c
     
             
 
@@ -227,8 +213,8 @@ def extract_constructions_qualitative(sentences, interesting_list):
 
     #go through each sentence
     for sentence in sentences:
-        preposition_gen_before = False
-        preposition_dat_before = False
+        preposition_gen_before = ""
+        preposition_dat_before = ""
         sentence_words = [word for lemma,tag,word in sentence]
         sentence_string = " ".join(sentence_words)
         for pos in range(0,len(sentence)):
@@ -240,16 +226,50 @@ def extract_constructions_qualitative(sentences, interesting_list):
                 if lemma_cmp in interesting_list:
                     preceding_string = " ".join(sentence_words[:pos])
                     following_string = " ".join(sentence_words[pos+1:])
-                    ending = ""
                     personal = ""
                     construction_name = "gen"
+                    construction_details = ""
+                    
+                    if (len(tag)==5 and tag[4]=="g"):
+                        # ins, ns, innar, nnar, nna
+                        if (word.endswith("innar")):
+                            construction_details = "DEF-innar"
+                        elif (word.endswith("nnar")):
+                            construction_details = "DEF-nnar"
+                        elif (word.endswith("nna")):
+                            construction_details = "DEF-nna"
+                        elif (word.endswith("ins")):
+                            construction_details = "DEF-ins"
+                        elif (word.endswith("ns")):
+                            construction_details = "DEF-ns"
+                        else:
+                            construction_details = "DEF-other"
+                    elif (word.endswith(("s"))):
+                        construction_details = "s"
+                    elif (word.endswith(("ar"))):
+                        construction_details = "ar"
+                    elif (word.endswith(("ur"))):
+                        construction_details = "ur"
+                    elif (word.endswith(("na"))):
+                        construction_details = "na"
+                    elif (word.endswith(("u"))):
+                        construction_details = "u"
+                    elif (word.endswith(("a"))):
+                        construction_details = "a"
+                    elif (word.endswith(("i"))):
+                        construction_details = "i"
+                    elif (word.endswith(("r"))):
+                        construction_details = "r"
+                    if len(tag) == 6:
+                        personal = "+PN"
                     
                     # If this is the first noun after a genitive-governing
                     # preposition, count as prepositional complement
-                    if preposition_gen_before == True:
-                        preposition_gen_before = False
+                    if len(preposition_gen_before) > 0:
                         construction_name = "pre-gen"
-                        
+                        construction_details = preposition_gen_before
+                        preposition_gen_before = ""
+                    
                     if len(tag) ==6:
                         # Detect linking pronoun construction,
                         # with the possessee ('fiets') at the current position
@@ -264,12 +284,14 @@ def extract_constructions_qualitative(sentences, interesting_list):
                             if (next_tag[0]=="n" and next_tag[3]!="e"):
                                 if (next2_lemma=="hann" and next2_tag=="fpkee") or (next2_lemma==u"hún" and next2_tag=="fpvee"):
                                     construction_name = "lpn"
+                                    construction_details = ""
                             # Option 2: 'Jans zijn fiets'
                             # pos+1: linking pronoun
                             # pos+2: noun non-genitive
                             if (next_lemma=="hann" and next_tag=="fpkee") or (next_lemma==u"hún" and next_tag=="fpvee"):
                                 if (next2_tag[0]=="n" and next2_tag[3]!="e"):
                                     construction_name = "lpn"
+                                    construction_details = ""
                         
                         if pos >= 2:
                             # Option 3: 'fiets zijn Jans'
@@ -280,91 +302,39 @@ def extract_constructions_qualitative(sentences, interesting_list):
                             if (prev_lemma=="hann" and prev_tag=="fpkee") or (prev_lemma==u"hún" and prev_tag=="fpvee"):
                                 if (prev2_tag[0]=="n" and prev2_tag[3]!="e"):
                                     construction_name = "lpn"
-                                   
-                    if (len(tag)==5 and tag[4]=="g"):
-                        # ins, ns, innar, nnar, nna
-                        if (word.endswith("innar")):
-                            ending = "DEF-innar"
-                        elif (word.endswith("nnar")):
-                            ending = "DEF-nnar"
-                        elif (word.endswith("nna")):
-                            ending = "DEF-nna"
-                        elif (word.endswith("ins")):
-                            ending = "DEF-ins"
-                        elif (word.endswith("ns")):
-                            ending = "DEF-ns"
-                        else:
-                            ending = "DEF-other"
-                    elif (word.endswith(("s"))):
-                        ending = "s"
-                    elif (word.endswith(("ar"))):
-                        ending = "ar"
-                    elif (word.endswith(("ur"))):
-                        ending = "ur"
-                    elif (word.endswith(("na"))):
-                        ending = "na"
-                    elif (word.endswith(("u"))):
-                        ending = "u"
-                    elif (word.endswith(("a"))):
-                        ending = "a"
-                    elif (word.endswith(("i"))):
-                        ending = "i"
-                    elif (word.endswith(("r"))):
-                        ending = "r"
-                    if len(tag) == 6:
-                        personal = "+PN"
-                    construction.append((lemma,tag,preceding_string,word,following_string, construction_name, ending, personal))
+                                    construction_details = ""
+                    
+                    construction.append((lemma,tag,preceding_string,word,following_string, construction_name, construction_details, personal))
             # Detect dative nouns
             elif ((len(tag) > 3) and (tag[0]== "n") and (tag[3] == u"þ")):
                 # Only if preposition was before,
                 # and no other dative noun has occurred in between
-                if preposition_dat_before == True:
-                    preposition_dat_before = False
+                if len(preposition_dat_before) > 0:
                     if lemma_cmp in interesting_list:
                         preceding_string = " ".join(sentence_words[:pos])
                         following_string = " ".join(sentence_words[pos+1:])
-                        ending = ""
+                        construction_details = ""
                         personal = ""
                         construction_name = "pre-dat"
-                        if (len(tag)==5 and tag[4]=="g"):
-                            # num, inni, nni, nu
-                            if (word.endswith("inni")):
-                                ending = "DEF-inni"
-                            elif (word.endswith("nni")):
-                                ending = "DEF-nni"
-                            elif (word.endswith("num")):
-                                ending = "DEF-num"
-                            elif (word.endswith("nu")):
-                                ending = "DEF-nu"
-                            else:
-                                ending = "DEF-other"
-                        elif (word.endswith("um")):
-                            ending = "um"
-                        elif (word.endswith("u")):
-                            ending = "u"
-                        elif (word.endswith("i")):
-                            ending = "i"
-                        elif (word.endswith("a")):
-                            ending = "a"
-                        else:
-                            ending = "EMPTY"
+                        construction_details = preposition_dat_before
                         if len(tag) == 6:
                             personal = "+PN"
-                        construction.append((lemma,tag,preceding_string,word,following_string, construction_name, ending, personal))
+                        construction.append((lemma,tag,preceding_string,word,following_string, construction_name, construction_details, personal))
+                    preposition_dat_before = ""
             # Detect preposition
             elif ((tag == u"aþ"
             or tag == u"aþe"
             or tag == u"aþm")
             and (word in [u"til",u"í",u"á",u"af",u"frá",u"hjá",u"að"])):
                 # Store use of preposition, so dative noun directly after can be captured
-                preposition_dat_before = True
+                preposition_dat_before = word
             elif ((tag == "ae")
             and (word in [u"til",u"í",u"á",u"af",u"frá",u"hjá",u"að"])):
                 # Store use of preposition, so genitive noun directly after can be captured
-                preposition_gen_before = True
+                preposition_gen_before = word
     
     # Write to files
-    io.write_construction_csv(construction, "qualitative",2000)
+    io.write_construction_csv(construction, "qualitative-new",2000)
 
 def count_qualitative(qual_entries):
     construction = defaultdict(int)
@@ -372,13 +342,61 @@ def count_qualitative(qual_entries):
     function_construction = defaultdict(int)
     
     for e in qual_entries:
-        features_construction = (e["construction"],e["ending"])
+        features_construction = (e["construction"],e["construction_details"])
         features_function = (e["animacy_possessor"], e["animacy_possessee"], e["alienability"])
         
         construction[features_construction] += 1
         function[features_function] +=1
-        function_construction[(features_construction, features_function)] +=1
-    return construction, function, function_construction
+        function_construction[(features_function, features_construction)] +=1
+    return function, construction, function_construction
+
+def compute_probabilities(count_function, count_construction, count_f_c, smoothing=None):
+    
+    p_f = {}
+    p_joint_f_c = {}
+    p_cond_c_f = {}
+    # Total counts should agree
+    count_function_total = sum(count_function[x] for x in count_function)
+    count_construction_total = sum(count_construction[x] for x in count_construction)
+    count_f_c_total = sum(count_f_c[x] for x in count_f_c)
+    assert count_function_total == count_construction_total == count_f_c_total
+    
+    for function in count_function:
+        # p(function) = c(function)/c(total)
+        p_f[function] = count_function[function]/float(count_function_total)
+    
+    for function,construction in count_f_c:
+        # p(function,construction) = count(function,construction)/c_total
+        p_joint_f_c[(function,construction)] = count_f_c[(function,construction)]/float(count_f_c_total)
+        # p(construction|function) = p(construction,function) / p(function)
+        p_cond_c_f[(construction,function)] = p_joint_f_c[(function,construction)] / float(p_f[function])
+    
+    # Check validity of probabilities in p_cond_c_f. For every f, should sum to 1.
+    for check_function in count_function:
+        summed_prob = 0.0
+        for construction,function in p_cond_c_f:
+            if function == check_function:
+                summed_prob+= p_cond_c_f[(construction,function)]
+        assert abs(summed_prob - 1.0) < 0.001
+            
+    
+    return p_f, p_joint_f_c, p_cond_c_f
+
+def print_sorted(dct):
+    print sorted(dct.items(), key=lambda x: x[1], reverse=True)
+
+def compare_files():
+    with open("qualitative-icelandic-justin.csv","r") as old:
+        with open("qualitative-new-2000.csv","r") as new:
+            old_lines = old.readlines()
+            new_lines = new.readlines()
+            assert len(old_lines) == len(new_lines)
+            for i in range(0,len(old_lines)):
+                old_line_split = old_lines[i].split(",")
+                new_line_split = new_lines[i].split(",")
+                if old_line_split[0] != new_line_split[0]:
+                    print i, old_line_split[0], new_line_split[0]
+
 if __name__ == "__main__":
     data = io.read_corpus("Saga")
     
@@ -391,10 +409,16 @@ if __name__ == "__main__":
     verb_list = io.read_list("verbs_automatic.txt")
     adj_list = io.read_list("adjectives_automatic.txt")
     adv_list = io.read_list("adverbs_automatic.txt")
-    counts_function, counts_construction, counts_f_c = count_quantitative(data, verb_list, adj_list, adv_list)
+    count_function_quant, count_construction_quant, count_f_c_quant = count_quantitative(data, verb_list, adj_list, adv_list)
     
     # Count qualitative, manually annotated, constructions
-    #qual_entries = io.read_qualitative("qualitative-icelandic-justin.csv")
-    #counts_function_qual, counts_construction_qual, counts_f_c_qual = count_qualitative(qual_entries)
-    #print sorted(counts_f_c_qual.items(), key=lambda x: x[1], reverse=True)
-    # compute_probabilities
+    qual_entries = io.read_qualitative("qualitative-icelandic-justin.csv")
+    count_function_qual, count_construction_qual, count_f_c_qual = count_qualitative(qual_entries)
+    
+    # Compute probabilities
+    p_f_quant, p_joint_f_c_quant, p_cond_c_f_quant = compute_probabilities(count_function_quant, count_construction_quant, count_f_c_quant)
+
+    p_f_qual, p_joint_f_c_qual, p_cond_c_f_qual = compute_probabilities(count_function_qual, count_construction_qual, count_f_c_qual)
+    
+    # Merge two probability dictionaries, and store as pickle
+    io.merge_and_store(count_f_c_quant, count_f_c_qual)

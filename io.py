@@ -26,7 +26,7 @@ def write_construction_csv(tokens_list, label, cutoff=None):
     
     # lemma,tag,preceding_string,word,following_string, construction_name, ending, personal
     with open(filename,"w") as construction_file:
-        file_output = "LEMMA,TAG,PRECEDING,CONSTRUCTION,FOLLOWING,CONSTRUCTION_NAME,ENDING,PERSONAL_NAME,ANIMACY,ALIENABILITY\n"
+        file_output = "LEMMA,TAG,PRECEDING,CONSTRUCTION,FOLLOWING,CONSTRUCTION_NAME,CONSTRUCTION_DETAILS,PERSONAL_NAME,ANIMACY,ALIENABILITY\n"
         construction_file.write(file_output.encode('utf-8'))
         for lemma,tag,preceding_string,word,following_string, construction_name, ending, personal in tokens_list:
             file_output = lemma + "," + tag + "," + preceding_string + "," + word + "," + following_string + "," + construction_name + "," + ending + "," + personal + ",,\n"
@@ -121,7 +121,6 @@ def read_qualitative(path):
         for line in qfile:
             l+=1
             if l==1:
-                l+=1
                 continue
             split_line = line.split(",")
             # Remove spaces
@@ -132,6 +131,13 @@ def read_qualitative(path):
                 if (split_line[8] != ""
                 and split_line[9] != ""
                 and split_line[10] != ""):
+                    # If preposition: drop case (dat/gen) in construction name
+                    if split_line[5].startswith("pre"):
+                        construction = "pre"
+                    else:
+                        construction = split_line[5]
+                    construction_details = split_line[6]
+                    
                     # Code for animacy possessor
                     if split_line[8] == "Y":
                         animacy_possessor = "+A"
@@ -152,8 +158,8 @@ def read_qualitative(path):
                     else:
                         alienability = "-ali"
                     entry = {
-                    "construction" : split_line[5],
-                    "ending": split_line[6],
+                    "construction" : construction,
+                    "construction_details": construction_details,
                     "animacy_possessor": animacy_possessor,
                     "animacy_possessee": animacy_possessee,
                     "alienability": alienability
@@ -162,3 +168,8 @@ def read_qualitative(path):
         print "# lines: " + str(l)
         print "# entries: " + str(len(entries))
     return entries
+    
+    def merge_and_store(dict1,dict2):
+        merged_dict = dict(dict1, **dict2)
+        with open("lm.p", as lm_pickle):
+            pickle.dump(merged_dict, lm_pickle)
