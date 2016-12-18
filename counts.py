@@ -33,6 +33,7 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False
         
         pre_before = ""
         pos_pre_before = 0
+        pre_before_type = ""
         
         sentence_words = [word for lemma,tag,word in sentence]
         sentence_string = " ".join(sentence_words)
@@ -60,10 +61,14 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False
                     pos_adv_before = pos
             
             # Match prepositions governing dative/genitive
-            if (tag == u"aþ"
-            or tag == u"ae"):
+            if (tag == u"aþ"):
                 pre_before = word
                 pos_pre_before = pos
+                pre_before_type = "dat"
+            if (tag == u"ae"):
+                pre_before = word
+                pos_pre_before = pos
+                pre_before_type = "gen"
             
             ###### Constructions
             # Now, look which constructions occur after a certain function
@@ -142,10 +147,16 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False
                         function["adv"].append(adv_before)
                         function_construction[("adv",features_construction)].append((adv_before,word, sentence_words))
                         adv_before = ""
-                    elif len(pre_before):
-                        function["pre"].append(pre_before)
-                        function_construction[("pre",features_construction)].append((pre_before,word, sentence_words))
+                    elif (len(pre_before) and pre_before_type == "dat"):
+                        function["pre-dat"].append(pre_before)
+                        function_construction[("pre-dat",features_construction)].append((pre_before,word, sentence_words))
                         pre_before = ""
+                        pre_before_type = ""
+                    elif (len(pre_before) and pre_before_type == "gen"):
+                        function["pre-gen"].append(pre_before)
+                        function_construction[("pre-gen",features_construction)].append((pre_before,word, sentence_words))
+                        pre_before = ""
+                        pre_before_type = ""
             
             # Dative noun
             elif ((len(tag) > 3) and (tag[0]== "n") and (tag[3] == u"þ")):
@@ -189,10 +200,16 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False
                         function["adv"].append(adv_before)
                         function_construction[("adv",features_construction)].append((adv_before,word, sentence_words))
                         adv_before = ""
-                    elif len(pre_before):
-                        function["pre"].append(pre_before)
-                        function_construction[("pre",features_construction)].append((pre_before,word, sentence_words))
+                    elif(len(pre_before) and pre_before_type == "dat"):
+                        function["pre-dat"].append(pre_before)
+                        function_construction[("pre-dat",features_construction)].append((pre_before,word, sentence_words))
                         pre_before = ""
+                        pre_before_type = ""
+                    elif (len(pre_before) and pre_before_type == "gen"):
+                        function["pre-gen"].append(pre_before)
+                        function_construction[("pre-gen",dat_category)].append((pre_before,word, sentence_words))
+                        pre_before = ""
+                        pre_before_type = ""
     
     count_function = count_dict(function)
     count_construction = count_dict(construction)
