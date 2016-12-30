@@ -13,13 +13,20 @@ import scipy.stats
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
 
+N_SIMULATIONS = 10
+
 N_AGENTS = 100
-N_EXEMPLARS = 100
+N_EXEMPLARS = 50
 N_ITERATIONS = 100000
 RANDOM_CONSTRUCTION_PROBABILITY = 0.1
+GRAPH_FREQUENCY = 500
+PRINT_FREQUENCY = 5000
 PLOT_THRESHOLD = 0.05
 
-WATCH_FUNCTIONS = [('+A+PN', '-A', '+ali'), ('+A', '-A', '+ali'),('+A', '-A', '-ali'), ('+A', '+A', '-ali'), ('+A', '-A', '-ali'), 'verb','pre-dat','pre-gen', 'adv']
+
+
+#WATCH_FUNCTIONS = [('+A+PN', '-A', '+ali'), ('+A', '-A', '+ali'),('+A', '-A', '-ali'), ('+A', '+A', '-ali'), ('+A', '-A', '-ali'), 'verb','pre-dat','pre-gen', 'adv']
+WATCH_FUNCTIONS = []
 
 def initialize_agents(lm_file_icelandic, n_agents_icelandic, n_agents_german):
     agents = []
@@ -35,7 +42,7 @@ def run_simulation(agents, n_iterations):
     graph_c = defaultdict(list)
     
     for i in range(0,n_iterations):
-        if i % 500 == 0:
+        if i % GRAPH_FREQUENCY == 0:
             _, p_c, _, p_cond_c_f = calculate_statistics(agents)
             # create graph per function, with line per construction
             for watch_function in WATCH_FUNCTIONS:
@@ -47,7 +54,7 @@ def run_simulation(agents, n_iterations):
             for c in p_c:
                 prob = p_c[c]
                 graph_c[c].append((i, prob))
-        if i % 1000 == 0:
+        if i % PRINT_FREQUENCY == 0:
             print i
         exemplar = None
         # Pick new sender until sender has been found that sends exemplar
@@ -129,8 +136,9 @@ def plot_graphs(graphs_cond_c_f, graphs_c):
         for construction in graphs_cond_c_f[function]:
             x = [p[0] for p in graphs_cond_c_f[function][construction]]
             y = [p[1] for p in graphs_cond_c_f[function][construction]]
-            line, = plt.plot(x,y, label=construction)
-            legend_info.append(line)
+            if y[0] > PLOT_THRESHOLD or y[-1] > PLOT_THRESHOLD:
+                line, = plt.plot(x,y, label=construction)
+                legend_info.append(line)
         plt.legend(handles=legend_info, loc="center left", bbox_to_anchor=(0.85, 0.5), prop=fontP)
         plt.show()
     
@@ -142,7 +150,7 @@ def plot_graphs(graphs_cond_c_f, graphs_c):
     for construction in graphs_c:
         x = [p[0] for p in graphs_c[construction]]
         y = [p[1] for p in graphs_c[construction]]
-        if y[-1] > PLOT_THRESHOLD:
+        if y[0] > PLOT_THRESHOLD or y[-1] > PLOT_THRESHOLD:
             line, = ax.plot(x,y, label=construction)
             legend_info.append(line)
 
@@ -182,18 +190,22 @@ def test_exemplar_set_sizes(lm_file):
 def main():
     #test_exemplar_set_sizes("lm-icelandic-merged.p")
     # Initialize 100 agents with Old Icelandic language model
-    agents = initialize_agents("lm-icelandic-merged.p",N_AGENTS, 0)
-    p_f_start, p_c_start, p_joint_start, p_cond_start = calculate_statistics(agents)
-    print "Start"
+    simulation_graphs = []
     
-    # Run simulation
-    graphs_cond_c_f, graphs_c = run_simulation(agents, N_ITERATIONS)
-    p_f_end, p_c_end, p_joint_end, p_cond_end = calculate_statistics(agents)
-    print
-    print "End"
+    # Perform N_SIMULATIONS simulations with new initialization
+    for sim in np.arange(1,N_SIMULATIONS+1):
+        agents = initialize_agents("lm-icelandic-merged.p",N_AGENTS, 0)
+        p_f_start, p_c_start, p_joint_start, p_cond_start = calculate_statistics(agents)
+        print "SIMULATION " + str(sim)
+        
+        # Run simulation
+        graphs_cond_c_f, graph_c = run_simulation(agents, N_ITERATIONS)
+        p_f_end, p_c_end, p_joint_end, p_cond_end = calculate_statistics(agents)
+        simulation_graphs.append((graphs_cond_c_f, graph_c))
     
-    # Plot graphs
-    plot_graphs(graphs_cond_c_f, graphs_c)
+    for graphs_cond_c_f, graph_c in simulation_graphs:
+        # Plot graphs
+        plot_graphs(graphs_cond_c_f, graph_c)
 
 if __name__ == "__main__":
     main()
