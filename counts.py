@@ -3,11 +3,12 @@
 
 from collections import defaultdict
 
-
-import io
+import utility
+from utility import print_sorted
+import files
 
 def count_dict(dct):
-    count = {}
+    count = defaultdict(int)
     for key in dct:
         count[key] = len(dct[key])
     
@@ -133,6 +134,8 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False
                         ending = "i"
                     elif (word.endswith(("r"))):
                         ending = "r"
+                    else:
+                        ending = "EMPTY"
                     features_construction = ("gen", ending)
                     construction[features_construction].append(word)
                     if len(verb_before):
@@ -207,7 +210,7 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False
                         pre_before_type = ""
                     elif (len(pre_before) and pre_before_type == "gen"):
                         function["pre-gen"].append(pre_before)
-                        function_construction[("pre-gen",dat_category)].append((pre_before,word, sentence_words))
+                        function_construction[("pre-gen",features_construction)].append((pre_before,word, sentence_words))
                         pre_before = ""
                         pre_before_type = ""
     
@@ -219,15 +222,20 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False
     if write_pdf:
         for f,c in function_construction:
             label = f + "," + c
-            io.write_construction_pdf(function_construction[(f,c)][:100], label)
-        io.dir_cleanup()
+            files.write_construction_pdf(function_construction[(f,c)][:100], label)
+        files.dir_cleanup()
     return count_function, count_construction, count_f_c
     
             
 
 def extract_constructions_qualitative(sentences, interesting_list):
     construction = []
-
+    
+    # Keep count of total possessive constructions,
+    # to calculate later what the fraction of extracted interesting possessive
+    # constructions is
+    total_possessive = 0
+    
     #go through each sentence
     for sentence in sentences:
         preposition_gen_before = ""
@@ -240,6 +248,7 @@ def extract_constructions_qualitative(sentences, interesting_list):
             ########## Detect only nouns ###########
             # Detect genitive noun
             if (len(tag) > 3 and tag[0] == "n" and tag[3]=="e"):
+                total_possessive += 1
                 if lemma_cmp in interesting_list:
                     preceding_string = " ".join(sentence_words[:pos])
                     following_string = " ".join(sentence_words[pos+1:])
@@ -327,6 +336,7 @@ def extract_constructions_qualitative(sentences, interesting_list):
                 # Only if preposition was before,
                 # and no other dative noun has occurred in between
                 if len(preposition_dat_before) > 0:
+                    total_possessive += 1
                     if lemma_cmp in interesting_list:
                         preceding_string = " ".join(sentence_words[:pos])
                         following_string = " ".join(sentence_words[pos+1:])
@@ -349,9 +359,9 @@ def extract_constructions_qualitative(sentences, interesting_list):
             and (word in [u"til",u"í",u"á",u"af",u"frá",u"hjá",u"að"])):
                 # Store use of preposition, so genitive noun directly after can be captured
                 preposition_gen_before = word
+    qualitative_examples = construction
+    return qualitative_examples, total_possessive
     
-    # Write to files
-    io.write_construction_csv(construction, "qualitative-new",2000)
 
 def count_qualitative(qual_entries):
     construction = defaultdict(int)
@@ -365,7 +375,76 @@ def count_qualitative(qual_entries):
         construction[features_construction] += 1
         function[features_function] +=1
         function_construction[(features_function, features_construction)] +=1
-    return function, construction, function_construction
+    annotated_possessive = len(qual_entries)
+    return function, construction, function_construction, annotated_possessive
+
+def compute_probabilities_combined(count_function_quant, count_construction_quant, count_f_c_quant, count_function_qual, count_construction_qual, count_f_c_qual, total_possessive, annotated_possessive):
+    
+    # Scale qualitative counts, based on fraction of total
+    fraction_annotated_possessive = annotated_possessive/float(total_possessive)
+    # (dicts are float, because scaled counts are floating point numbers)
+    count_function_qual_scaled = defaultdict(float)
+    count_construction_qual_scaled = defaultdict(float)
+    count_f_c_qual_scaled = defaultdict(float)
+    for f in count_function_qual:
+        count_function_qual_scaled[f] = count_function_qual[f] / float(fraction_annotated_possessive)
+    for c in count_construction_qual:
+        count_construction_qual_scaled[c] = count_construction_qual[c] / float(fraction_annotated_possessive)
+    for f,c in count_f_c_qual:
+        count_f_c_qual_scaled[(f,c)] = count_f_c_qual[(f,c)] / float(fraction_annotated_possessive)
+    
+    # Combine dictionaries of quantative counts and scaled qualitative counts
+    count_function = {}
+    count_construction = {}
+    count_f_c = {}
+    
+    combined_function_keys = count_function_quant.keys() + count_function_qual_scaled.keys()
+    for f in combined_function_keys:
+        count_function[f] = count_function_quant[f] + count_function_qual_scaled[f]
+    combined_construction_keys = count_construction_quant.keys() + count_construction_qual_scaled.keys()
+    for c in combined_construction_keys:
+        count_construction[c] = count_construction_quant[c] + count_construction_qual_scaled[c]
+    combined_f_c_keys = count_f_c_quant.keys() + count_f_c_qual_scaled.keys()
+    for f,c in combined_f_c_keys:
+        count_f_c[(f,c)] = count_f_c_quant[(f,c)] + count_f_c_qual_scaled[(f,c)]
+    
+    # Validity check. total counts should be the same
+    count_function_total = sum(count_function[x] for x in count_function)
+    count_construction_total = sum(count_construction[x] for x in count_construction)
+    count_f_c_total = sum(count_f_c[x] for x in count_f_c)
+    assert (abs(count_function_total - count_construction_total) < 0.001 and
+    abs(count_function_total - count_f_c_total) < 0.001)
+    
+    # Compute probabilities
+    p_f = defaultdict(float)
+    p_c = defaultdict(float)
+    p_joint_f_c = defaultdict(float)
+    p_cond_c_f = defaultdict(float)
+    
+    for function in count_function:
+        # p(function) = c(function)/c(total)
+        p_f[function] = count_function[function]/float(count_function_total)
+    
+    for construction in count_construction:
+        # p(construction) = c(construction)/c(total)
+        p_c[construction] = count_construction[construction]/float(count_construction_total)
+    
+    for function,construction in count_f_c:
+        # p(function,construction) = count(function,construction)/c_total
+        p_joint_f_c[(function,construction)] = count_f_c[(function,construction)]/float(count_f_c_total)
+        # p(construction|function) = p(construction,function) / p(function)
+        p_cond_c_f[(construction,function)] = p_joint_f_c[(function,construction)] / float(p_f[function])
+    
+    # Check validity of probabilities in p_cond_c_f. For every f, should sum to 1.
+    for check_function in count_function:
+        summed_prob = 0.0
+        for construction,function in p_cond_c_f:
+            if function == check_function:
+                summed_prob+= p_cond_c_f[(construction,function)]
+        assert abs(summed_prob - 1.0) < 0.001
+            
+    
+    return p_f, p_c, p_joint_f_c, p_cond_c_f
 
 def compute_probabilities(count_function, count_construction, count_f_c, smoothing=None):
     
@@ -399,9 +478,6 @@ def compute_probabilities(count_function, count_construction, count_f_c, smoothi
     
     return p_f, p_joint_f_c, p_cond_c_f
 
-def print_sorted(dct):
-    print sorted(dct.items(), key=lambda x: x[1], reverse=True)
-
 def compare_files():
     with open("qualitative-icelandic-justin.csv","r") as old:
         with open("qualitative-new-2000.csv","r") as new:
@@ -414,28 +490,92 @@ def compare_files():
                 if old_line_split[0] != new_line_split[0]:
                     print i, old_line_split[0], new_line_split[0]
 
-if __name__ == "__main__":
-    data = io.read_corpus("Saga")
+def merge_categories(count_function, count_construction, count_f_c):
+    count_function_merged = defaultdict(int)
+    count_construction_merged = defaultdict(int)
+    count_f_c_merged = defaultdict(int)
+    
+    
+    visited_constructions = set()
+    visited_functions = set()
+    # Merge f,c
+    for function,construction in count_f_c:
+        new_construction = construction
+        new_function = function
+        if isinstance(function,basestring) and function.startswith("pre"):
+            new_function = "pre"
+        
+        if construction[0] == "gen":
+            # Redivide gen endings in -s/-r/OTHER
+            if construction[1].endswith("s"):
+                new_construction = (construction[0],"s")
+            elif construction[1].endswith("r"):
+                new_construction = (construction[0],"r")
+            else:
+                new_construction = (construction[0],"OTHER")
+        
+        if construction[0] == "dat":
+            # Redivide dat endings in -i/EMPTY/OTHER
+            if construction[1].endswith("i"):
+                new_construction = (construction[0],"i")
+            elif construction[1] == "EMPTY":
+                new_construction = (construction[0],"EMPTY")
+            else:
+                new_construction = (construction[0],"OTHER")
+        
+        if function not in visited_functions:
+            count_function_merged[new_function] += count_function[function]
+            visited_functions.add(function)
+        if construction not in visited_constructions:
+            count_construction_merged[new_construction] += count_construction[construction]
+            visited_constructions.add(construction)
+        count_f_c_merged[(new_function,new_construction)] += count_f_c[(function,construction)]
+    return count_function_merged, count_construction_merged, count_f_c_merged
+
+def main():
+    data = files.read_corpus("Saga")
     
     # Qualitative analysis: extract occurrences of interesting words in corpus, which can be manually annotated
-    #interesting_list = io.read_list("icelandic-interesting-modified.txt") + io.read_list("icelandic-interesting-names.txt")
-    #extract_constructions_qualitative(data, interesting_list)
-    
+    interesting_list = files.read_list("icelandic-interesting-modified.txt") + files.read_list("icelandic-interesting-names.txt")
+    qualitative_examples, total_possessive = extract_constructions_qualitative(data, interesting_list)
+    files.write_construction_csv(qualitative_examples, "qualitative-new",2000)
     
     # Quantitative analysis
-    verb_list = io.read_list("verbs_automatic.txt")
-    adj_list = io.read_list("adjectives_automatic.txt")
-    adv_list = io.read_list("adverbs_automatic.txt")
+    verb_list = files.read_list("verbs_automatic.txt")
+    adj_list = files.read_list("adjectives_automatic.txt")
+    adv_list = files.read_list("adverbs_automatic.txt")
     count_function_quant, count_construction_quant, count_f_c_quant = count_quantitative(data, verb_list, adj_list, adv_list)
     
+    
+    
     # Count qualitative, manually annotated, constructions
-    qual_entries = io.read_qualitative("qualitative-icelandic-justin.csv")
-    count_function_qual, count_construction_qual, count_f_c_qual = count_qualitative(qual_entries)
-    
-    # Compute probabilities
-    p_f_quant, p_joint_f_c_quant, p_cond_c_f_quant = compute_probabilities(count_function_quant, count_construction_quant, count_f_c_quant)
+    qual_entries = files.read_qualitative("qualitative-icelandic-justin.csv")
+    count_function_qual, count_construction_qual, count_f_c_qual, annotated_possessive = count_qualitative(qual_entries)
 
-    p_f_qual, p_joint_f_c_qual, p_cond_c_f_qual = compute_probabilities(count_function_qual, count_construction_qual, count_f_c_qual)
     
-    # Merge two probability dictionaries, and store as pickle
-    io.merge_and_store(count_f_c_quant, count_f_c_qual)
+    ### Regular Icelandic language model
+    # Compute probabilities 
+    p_f, p_c, p_joint_f_c, p_cond_c_f = compute_probabilities_combined(count_function_quant, count_construction_quant, count_f_c_quant, count_function_qual, count_construction_qual, count_f_c_qual, total_possessive, annotated_possessive)
+
+    
+    
+    ## Store as pickle
+    files.store((p_f, p_c, p_joint_f_c, p_cond_c_f), "lm-icelandic.p")
+    
+    
+    ### Merged Icelandic language model
+    # Merge categories for qualitative and quantitative counts
+    mcount_function_quant, mcount_construction_quant, mcount_f_c_quant = merge_categories(count_function_quant,                                                                 count_construction_quant, count_f_c_quant)
+    
+    mcount_function_qual, mcount_construction_qual, mcount_f_c_qual = merge_categories(count_function_qual,                                                                 count_construction_qual, count_f_c_qual)
+    # Compute probabilities 
+    mp_f, mp_c, mp_joint_f_c, mp_cond_c_f = compute_probabilities_combined(mcount_function_quant, mcount_construction_quant, mcount_f_c_quant, mcount_function_qual, mcount_construction_qual, mcount_f_c_qual, total_possessive, annotated_possessive)
+    
+    print_sorted(mcount_construction_qual)
+    print_sorted(mcount_construction_quant)
+    print_sorted(mp_c)
+    # Store as pickle
+    files.store((mp_f, mp_c, mp_joint_f_c, mp_cond_c_f), "lm-icelandic-merged.p")
+    
+if __name__ == "__main__":
+    main()
