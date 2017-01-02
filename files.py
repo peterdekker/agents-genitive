@@ -8,6 +8,7 @@ import cPickle as pickle
 import subprocess
 import random
 random.seed(10)
+from collections import defaultdict
 
 def read_list(path):
     interesting = []
@@ -114,7 +115,7 @@ def read_corpus(corpus_directory):
             pickle.dump(sentences, saga_pickle)
     return sentences
     
-def read_qualitative(path):
+def read_qualitative(path, lang_format):
     entries = []
     with open(path, "r") as qfile:
         l = 0
@@ -125,47 +126,149 @@ def read_qualitative(path):
             split_line = line.split(",")
             # Remove spaces
             split_line = [x.strip() for x in split_line]
-            # lines with X not taken into account
-            if split_line[11] != "X":
-                # Remove entries which have not been filled in
-                if (split_line[8] != ""
-                and split_line[9] != ""
-                and split_line[10] != ""):
-                    # If preposition: drop case (dat/gen) in construction name
-                    if split_line[5].startswith("pre"):
-                        construction = "pre"
-                    else:
-                        construction = split_line[5]
-                    construction_details = unicode(split_line[6], "utf-8")
-                    # Code for animacy possessor
-                    if split_line[8] == "Y":
-                        animacy_possessor = "+A"
-                        if split_line[7] == "+PN":
-                            animacy_possessor += "+PN"
-                    else:
-                        animacy_possessor = "-A"
-                    
-                    # Code for animacy possessee
-                    if split_line[9] == "Y":
-                        animacy_possessee = "+A"
-                    else:
-                        animacy_possessee = "-A"
+            
+            if lang_format=="icelandic":
+                # lines with X not taken into account
+                if split_line[11] != "X":
+                    # Remove entries which have not been filled in
+                    if (split_line[8] != ""
+                    and split_line[9] != ""
+                    and split_line[10] != ""):
+                        # If preposition: drop case (dat/gen) in construction name
+                        if split_line[5].startswith("pre"):
+                            construction = "pre"
+                        else:
+                            construction = split_line[5]
+                        construction_details = unicode(split_line[6], "utf-8")
+                        # Code for animacy possessor
+                        if split_line[8] == "Y":
+                            animacy_possessor = "+A"
+                            if split_line[7] == "+PN":
+                                animacy_possessor += "+PN"
+                        else:
+                            animacy_possessor = "-A"
                         
-                    # Code for alienability (possessor)
-                    if split_line[10] == "Y":
-                        alienability = "+ali"
-                    else:
-                        alienability = "-ali"
-                    entry = {
-                    "construction" : construction,
-                    "construction_details": construction_details,
-                    "animacy_possessor": animacy_possessor,
-                    "animacy_possessee": animacy_possessee,
-                    "alienability": alienability
-                    }
-                    entries.append(entry)
+                        # Code for animacy possessee
+                        if split_line[9] == "Y":
+                            animacy_possessee = "+A"
+                        else:
+                            animacy_possessee = "-A"
+                            
+                        # Code for alienability (possessor)
+                        if split_line[10] == "Y":
+                            alienability = "+ali"
+                        else:
+                            alienability = "-ali"
+                        entry = {
+                        "construction" : construction,
+                        "construction_details": construction_details,
+                        "animacy_possessor": animacy_possessor,
+                        "animacy_possessee": animacy_possessee,
+                        "alienability": alienability
+                        }
+                        entries.append(entry)
+            elif lang_format == "german":
+                # Use 'preposition' column to determine construction
+                if split_line[4] == "":
+                    # If no preposition, construction = "pre"/"dat"
+                    construction = split_line[1].lower()
+                    # construction_details = declination (equiv. to ending)
+                    construction_details = split_line[2].split()[0]
+                elif split_line[4] == "Rel PN":
+                    construction = "rel-pn"
+                    construction_details = ""
+                else:
+                    # If there is a preposition, construction = "pre"
+                    construction = "pre"
+                    construction_details = split_line[4]
+                order = ""
+                if split_line[3].startswith("1"):
+                    order = "order1"
+                elif split_line[3].startswith("2"):
+                    order = "order2"
+                # Code for animacy possessor
+                if split_line[6] == "Y":
+                    animacy_possessor = "+A"
+                    if split_line[10] == "+PN":
+                        animacy_possessor += "+PN"
+                else:
+                    animacy_possessor = "-A"
+                
+                # Code for animacy possessee
+                if split_line[7] == "Y":
+                    animacy_possessee = "+A"
+                else:
+                    animacy_possessee = "-A"
+                    
+                # Code for alienability (possessor)
+                if split_line[8] == "Y":
+                    alienability = "+ali"
+                else:
+                    alienability = "-ali"
+                entry = {
+                "construction" : construction,
+                "construction_details": construction_details,
+                "order": order,
+                "animacy_possessor": animacy_possessor,
+                "animacy_possessee": animacy_possessee,
+                "alienability": alienability
+                }
+                entries.append(entry) 
+            
+            else:
+                print "Unknown language format: " + lang_format
+                    
     return entries
-    
+
+def write_prob_table(p_f, p_c, p_cond_c_f, filename):
+    # Create new p_cond_c_f with inverted keys (f,c) instead of (c,f)
+    p_inv = {}
+    for c,f in p_cond_c_f:
+        p_inv[(f,c)] = p_cond_c_f[(c,f)]
+    return write_count_table(p_f,p_c,p_inv, filename)
+
+def write_count_table(count_f, count_c, count_f_c, filename):
+    delim = ";"
+    with open(filename,"w") as table_file:
+        content_type = type(count_f_c.values()[0])
+        dict_per_f = defaultdict(lambda: defaultdict(content_type))
+        c_set = set()
+        for f,c in count_f_c:
+            dict_per_f[f][c] = count_f_c[(f,c)]
+        c_list = [str(c) for c in count_c]
+        header_line = "F\\C" + delim
+        header_line += delim.join(c_list)
+        header_line += delim + "\n"
+        table_file.write(header_line)
+        # Write line with construction counts per function
+        for f in dict_per_f:
+            function_line = str(f)
+            # Add count per construction
+            for c in count_c:
+                f_c_string = fmt(dict_per_f[f][c], content_type)
+                function_line += delim
+                function_line += f_c_string
+            # Add function total
+            tot_f_string = fmt(count_f[f], content_type)
+            function_line += delim
+            function_line += tot_f_string
+            function_line += "\n"
+            table_file.write(function_line)
+        # Write construction totals
+        total_line = delim
+        for c in count_c:
+            tot_c_string = fmt(count_c[c],content_type)
+            total_line += tot_c_string + delim
+        total_line += "\n"
+        table_file.write(total_line)
+
+def fmt(value, content_type):
+    if content_type == float:
+        value_string = "{:.4f}".format(value)
+    else:
+        value_string = str(value)
+    return value_string
+
 def store(data, filename):
     with open(filename, "wb") as lm_pickle:
         pickle.dump(data, lm_pickle)

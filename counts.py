@@ -369,7 +369,10 @@ def count_qualitative(qual_entries):
     function_construction = defaultdict(int)
     
     for e in qual_entries:
-        features_construction = (e["construction"],e["construction_details"])
+        if "order" in e:
+            features_construction = (e["construction"], e["order"])
+        else:
+            features_construction = (e["construction"],e["construction_details"])
         features_function = (e["animacy_possessor"], e["animacy_possessee"], e["alienability"])
         
         construction[features_construction] += 1
@@ -378,7 +381,7 @@ def count_qualitative(qual_entries):
     annotated_possessive = len(qual_entries)
     return function, construction, function_construction, annotated_possessive
 
-def compute_probabilities_combined(count_function_quant, count_construction_quant, count_f_c_quant, count_function_qual, count_construction_qual, count_f_c_qual, total_possessive, annotated_possessive):
+def compute_probabilities_combined(count_function_quant, count_construction_quant, count_f_c_quant, count_function_qual, count_construction_qual, count_f_c_qual, total_possessive, annotated_possessive, smoothing=None):
     
     # Scale qualitative counts, based on fraction of total
     fraction_annotated_possessive = annotated_possessive/float(total_possessive)
@@ -408,6 +411,9 @@ def compute_probabilities_combined(count_function_quant, count_construction_quan
     for f,c in combined_f_c_keys:
         count_f_c[(f,c)] = count_f_c_quant[(f,c)] + count_f_c_qual_scaled[(f,c)]
     
+    return compute_probabilities(count_function, count_construction, count_f_c, smoothing=None)
+
+def compute_probabilities(count_function, count_construction, count_f_c, smoothing=None):
     # Validity check. total counts should be the same
     count_function_total = sum(count_function[x] for x in count_function)
     count_construction_total = sum(count_construction[x] for x in count_construction)
@@ -445,38 +451,6 @@ def compute_probabilities_combined(count_function_quant, count_construction_quan
             
     
     return p_f, p_c, p_joint_f_c, p_cond_c_f
-
-def compute_probabilities(count_function, count_construction, count_f_c, smoothing=None):
-    
-    p_f = {}
-    p_joint_f_c = {}
-    p_cond_c_f = {}
-    # Total counts should agree
-    count_function_total = sum(count_function[x] for x in count_function)
-    count_construction_total = sum(count_construction[x] for x in count_construction)
-    count_f_c_total = sum(count_f_c[x] for x in count_f_c)
-    assert count_function_total == count_construction_total == count_f_c_total
-    
-    for function in count_function:
-        # p(function) = c(function)/c(total)
-        p_f[function] = count_function[function]/float(count_function_total)
-    
-    for function,construction in count_f_c:
-        # p(function,construction) = count(function,construction)/c_total
-        p_joint_f_c[(function,construction)] = count_f_c[(function,construction)]/float(count_f_c_total)
-        # p(construction|function) = p(construction,function) / p(function)
-        p_cond_c_f[(construction,function)] = p_joint_f_c[(function,construction)] / float(p_f[function])
-    
-    # Check validity of probabilities in p_cond_c_f. For every f, should sum to 1.
-    for check_function in count_function:
-        summed_prob = 0.0
-        for construction,function in p_cond_c_f:
-            if function == check_function:
-                summed_prob+= p_cond_c_f[(construction,function)]
-        assert abs(summed_prob - 1.0) < 0.001
-            
-    
-    return p_f, p_joint_f_c, p_cond_c_f
 
 def compare_files():
     with open("qualitative-icelandic-justin.csv","r") as old:
@@ -532,7 +506,26 @@ def merge_categories(count_function, count_construction, count_f_c):
         count_f_c_merged[(new_function,new_construction)] += count_f_c[(function,construction)]
     return count_function_merged, count_construction_merged, count_f_c_merged
 
-def main():
+def create_lm_german():
+    # Count qualitative, manually annotated, constructions
+    qual_entries = files.read_qualitative("mlg-stats.csv", lang_format="german")
+    count_function_qual, count_construction_qual, count_f_c_qual, annotated_possessive = count_qualitative(qual_entries)
+    
+    print_sorted(count_function_qual)
+    print_sorted(count_construction_qual)
+    print_sorted(count_f_c_qual)
+    files.write_count_table(count_function_qual, count_construction_qual, count_f_c_qual,"table_fc_german.csv")
+    
+    
+    print "PROBS:"
+    p_f, p_c, p_joint_f_c, p_cond_c_f = compute_probabilities(count_function_qual, count_construction_qual, count_f_c_qual)
+    print_sorted(p_f)
+    print_sorted(p_c)
+    print_sorted(p_cond_c_f)
+    files.write_prob_table(p_f, p_c, p_cond_c_f,"table_prob_german.csv")
+def create_lm_icelandic():
+    
+    ### Icelandic
     data = files.read_corpus("Saga")
     
     # Qualitative analysis: extract occurrences of interesting words in corpus, which can be manually annotated
@@ -549,11 +542,11 @@ def main():
     
     
     # Count qualitative, manually annotated, constructions
-    qual_entries = files.read_qualitative("qualitative-icelandic-justin.csv")
+    qual_entries = files.read_qualitative("qualitative-icelandic-justin.csv", lang_format="icelandic")
     count_function_qual, count_construction_qual, count_f_c_qual, annotated_possessive = count_qualitative(qual_entries)
 
     
-    ### Regular Icelandic language model
+    ## Regular Icelandic language model
     # Compute probabilities 
     p_f, p_c, p_joint_f_c, p_cond_c_f = compute_probabilities_combined(count_function_quant, count_construction_quant, count_f_c_quant, count_function_qual, count_construction_qual, count_f_c_qual, total_possessive, annotated_possessive)
 
@@ -563,7 +556,7 @@ def main():
     files.store((p_f, p_c, p_joint_f_c, p_cond_c_f), "lm-icelandic.p")
     
     
-    ### Merged Icelandic language model
+    ## Merged Icelandic language model
     # Merge categories for qualitative and quantitative counts
     mcount_function_quant, mcount_construction_quant, mcount_f_c_quant = merge_categories(count_function_quant,                                                                 count_construction_quant, count_f_c_quant)
     
@@ -577,5 +570,7 @@ def main():
     # Store as pickle
     files.store((mp_f, mp_c, mp_joint_f_c, mp_cond_c_f), "lm-icelandic-merged.p")
     
+    
 if __name__ == "__main__":
-    main()
+    #create_lm_icelandic()
+    create_lm_german()
