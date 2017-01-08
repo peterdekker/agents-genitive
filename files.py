@@ -2,6 +2,7 @@
 # File containing file input/output methods
 
 import os
+import errno
 import xml.etree.ElementTree as et
 from unidecode import unidecode
 import cPickle as pickle
@@ -121,7 +122,10 @@ def read_qualitative(path, lang_format):
         l = 0
         for line in qfile:
             l+=1
-            if l==1:
+            # Skip first lines
+            if lang_format=="icelandic" and l==1:
+                continue
+            if lang_format=="german" and l<12:
                 continue
             split_line = line.split(",")
             # Remove spaces
@@ -159,9 +163,16 @@ def read_qualitative(path, lang_format):
                             alienability = "+ali"
                         else:
                             alienability = "-ali"
+                        
+                        order = ""
+                        if split_line[13].startswith("1"):
+                            order = "order1"
+                        elif split_line[13].startswith("2"):
+                            order = "order2"
                         entry = {
                         "construction" : construction,
                         "construction_details": construction_details,
+                        "order": order,
                         "animacy_possessor": animacy_possessor,
                         "animacy_possessee": animacy_possessee,
                         "alienability": alienability
@@ -241,9 +252,11 @@ def write_count_table(count_f, count_c, count_f_c, filename):
         header_line += delim + "\n"
         table_file.write(header_line)
         # Write line with construction counts per function
-        for f in dict_per_f:
+        f_sorted = sorted(dict_per_f.keys())
+        for f in f_sorted:
             function_line = str(f)
             # Add count per construction
+            c_sorted = sorted(count_c.keys())
             for c in count_c:
                 f_c_string = fmt(dict_per_f[f][c], content_type)
                 function_line += delim
@@ -272,3 +285,10 @@ def fmt(value, content_type):
 def store(data, filename):
     with open(filename, "wb") as lm_pickle:
         pickle.dump(data, lm_pickle)
+
+def create_directory(path):
+    try:
+        os.makedirs(path)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise

@@ -3,6 +3,8 @@
 
 from collections import defaultdict
 
+import numpy as np
+
 import utility
 from utility import print_sorted
 import files
@@ -14,7 +16,7 @@ def count_dict(dct):
     
     return count
 
-def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False):
+def count_quantitative(sentences, verb_list, adj_list, adv_list, order, order_probs=None, write_pdf=False):
     construction = defaultdict(list)
     function = defaultdict(list)
     function_construction = defaultdict(list)
@@ -83,7 +85,12 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False
                 if ((len(verb_before) and pos-pos_pre_before<=5)
                 or (len(adj_before) and pos-pos_adj_before<=5)
                 or (len(adv_before) and pos-pos_adv_before<=5)):
-                    features_construction = ("pre",word)
+                    if order:
+                        # Sample order from qualitative distribution
+                        sampled_order = np.random.choice(["order1","order2"], p=order_probs)
+                        features_construction = ("pre",word, sampled_order)
+                    else:
+                        features_construction = ("pre",word)
                     construction[features_construction].append(word)
                     if len(verb_before):
                         function["verb"].append(verb_before)
@@ -136,7 +143,12 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False
                         ending = "r"
                     else:
                         ending = "EMPTY"
-                    features_construction = ("gen", ending)
+                    if order:
+                        # Sample order from qualitative distribution
+                        sampled_order = np.random.choice(["order1","order2"], p=order_probs)
+                        features_construction = ("gen",word, sampled_order)
+                    else:
+                        features_construction = ("gen",word)
                     construction[features_construction].append(word)
                     if len(verb_before):
                         function["verb"].append(verb_before)
@@ -189,7 +201,12 @@ def count_quantitative(sentences, verb_list, adj_list, adv_list, write_pdf=False
                         ending = "a"
                     else:
                         ending = "EMPTY"
-                    features_construction = ("dat",ending)
+                    if order:
+                        # Sample order from qualitative distribution
+                        sampled_order = np.random.choice(["order1","order2"], p=order_probs)
+                        features_construction = ("dat",word, sampled_order)
+                    else:
+                        features_construction = ("dat",word)
                     construction[features_construction].append(word)
                     if len(verb_before):
                         function["verb"].append(verb_before)
@@ -363,14 +380,27 @@ def extract_constructions_qualitative(sentences, interesting_list):
     return qualitative_examples, total_possessive
     
 
-def count_qualitative(qual_entries):
+def count_qualitative(qual_entries, order, drop_details):
     construction = defaultdict(int)
     function = defaultdict(int)
     function_construction = defaultdict(int)
-    
+    count_order1 = 0
+    count_order2 = 0
+    annotated_possessive = 0
     for e in qual_entries:
-        if "order" in e:
-            features_construction = (e["construction"], e["order"])
+        if e["order"] =="order1":
+            count_order1 +=1
+        elif e["order"]=="order2":
+            count_order2 +=2
+        else:
+            if order:
+                # Drop entries without order, when order
+                continue
+        
+        if order and drop_details:
+            features_construction = (e["construction"],e["order"])
+        elif order:
+            features_construction = (e["construction"],e["construction_details"],e["order"])
         else:
             features_construction = (e["construction"],e["construction_details"])
         features_function = (e["animacy_possessor"], e["animacy_possessee"], e["alienability"])
@@ -378,8 +408,12 @@ def count_qualitative(qual_entries):
         construction[features_construction] += 1
         function[features_function] +=1
         function_construction[(features_function, features_construction)] +=1
-    annotated_possessive = len(qual_entries)
-    return function, construction, function_construction, annotated_possessive
+        annotated_possessive += 1
+    
+    count_order_tot = count_order1+count_order2
+    order_probs = [count_order1/float(count_order_tot), count_order2/float(count_order_tot)]
+    
+    return function, construction, function_construction, annotated_possessive, order_probs
 
 def compute_probabilities_combined(count_function_quant, count_construction_quant, count_f_c_quant, count_function_qual, count_construction_qual, count_f_c_qual, total_possessive, annotated_possessive, smoothing=None):
     
@@ -464,7 +498,7 @@ def compare_files():
                 if old_line_split[0] != new_line_split[0]:
                     print i, old_line_split[0], new_line_split[0]
 
-def merge_categories(count_function, count_construction, count_f_c):
+def merge_categories(count_function, count_construction, count_f_c, lang_format):
     count_function_merged = defaultdict(int)
     count_construction_merged = defaultdict(int)
     count_f_c_merged = defaultdict(int)
@@ -479,23 +513,63 @@ def merge_categories(count_function, count_construction, count_f_c):
         if isinstance(function,basestring) and function.startswith("pre"):
             new_function = "pre"
         
-        if construction[0] == "gen":
-            # Redivide gen endings in -s/-r/OTHER
-            if construction[1].endswith("s"):
-                new_construction = (construction[0],"s")
-            elif construction[1].endswith("r"):
-                new_construction = (construction[0],"r")
-            else:
-                new_construction = (construction[0],"OTHER")
+        if lang_format == "icelandic":
+            if construction[0] == "gen":
+                # Redivide gen endings in -s/-r/OTHER
+                if construction[1].endswith("s"):
+                    if len(construction)==3:
+                        new_construction = (construction[0],"s", construction[2])
+                    else:
+                        new_construction = (construction[0],"s")
+                elif construction[1].endswith("r"):
+                    if len(construction)==3:
+                        new_construction = (construction[0],"r", construction[2])
+                    else:
+                        new_construction = (construction[0],"r")
+                else:
+                    if len(construction)==3:
+                        new_construction = (construction[0],"OTHER", construction[2])
+                    else:
+                        new_construction = (construction[0],"OTHER")
+            
+            if construction[0] == "dat":
+                # All datives have type OTHER
+                if len(construction)==3:
+                    new_construction = (construction[0],"OTHER", construction[2])
+                else:
+                    new_construction = (construction[0],"OTHER")
         
-        if construction[0] == "dat":
-            # Redivide dat endings in -i/EMPTY/OTHER
-            if construction[1].endswith("i"):
-                new_construction = (construction[0],"i")
-            elif construction[1] == "EMPTY":
-                new_construction = (construction[0],"EMPTY")
-            else:
-                new_construction = (construction[0],"OTHER")
+        if lang_format == "german":
+            if construction[0] == "gen":
+                # Convert 'masc.st' to -s, rest to OTHER
+                if construction[1] == "masc.st":
+                    if len(construction)==3:
+                        new_construction = (construction[0],"s", construction[2])
+                    else:
+                        new_construction = (construction[0],"s")
+                else:
+                    if len(construction)==3:
+                        new_construction = (construction[0],"OTHER", construction[2])
+                    else:
+                        new_construction = (construction[0],"OTHER")
+            
+            if construction[0] == "dat":
+                # Redivide dat endings in -i/EMPTY/OTHER
+                if construction[1].endswith("i"):
+                    if len(construction)==3:
+                        new_construction = (construction[0],"i", construction[2])
+                    else:
+                        new_construction = (construction[0],"i")
+                elif construction[1] == "EMPTY":
+                    if len(construction)==3:
+                        new_construction = (construction[0],"EMPTY", construction[2])
+                    else:
+                        new_construction = (construction[0],"EMPTY")
+                else:
+                    if len(construction)==3:
+                        new_construction = (construction[0],"OTHER", construction[2])
+                    else:
+                        new_construction = (construction[0],"OTHER")
         
         if function not in visited_functions:
             count_function_merged[new_function] += count_function[function]
@@ -506,26 +580,63 @@ def merge_categories(count_function, count_construction, count_f_c):
         count_f_c_merged[(new_function,new_construction)] += count_f_c[(function,construction)]
     return count_function_merged, count_construction_merged, count_f_c_merged
 
-def create_lm_german():
+def create_lm_german(order=True, merged_categories = True, drop_details = False):
+    filename = "lm-german"
+    if order:
+        filename += "-order"
+    if merged_categories:
+        filename += "-merged"
+    if drop_details:
+        filename += "-dropdetails"
+    
     # Count qualitative, manually annotated, constructions
-    qual_entries = files.read_qualitative("mlg-stats.csv", lang_format="german")
-    count_function_qual, count_construction_qual, count_f_c_qual, annotated_possessive = count_qualitative(qual_entries)
+    qual_entries = files.read_qualitative("20170103-qualitative-mlg-justin.csv", lang_format="german")
+    count_function_qual, count_construction_qual, count_f_c_qual, _, _ = count_qualitative(qual_entries, order, drop_details)
     
-    print_sorted(count_function_qual)
-    print_sorted(count_construction_qual)
-    print_sorted(count_f_c_qual)
-    files.write_count_table(count_function_qual, count_construction_qual, count_f_c_qual,"table_fc_german.csv")
+    if merged_categories:
+        # Merge categories
+        mcount_function_qual, mcount_construction_qual, mcount_f_c_qual = merge_categories(count_function_qual, count_construction_qual, count_f_c_qual, lang_format="german")
+        print_sorted(mcount_function_qual)
+        print_sorted(mcount_construction_qual)
+        print_sorted(mcount_f_c_qual)
+
+        mp_f, mp_c, mp_joint_f_c, mp_cond_c_f = compute_probabilities(mcount_function_qual, mcount_construction_qual, mcount_f_c_qual)
+        
+        # Compute probabilities
+        print "PROBS:"
+        print_sorted(mp_f)
+        print_sorted(mp_c)
+        print_sorted(mp_cond_c_f)
+        files.write_count_table(mcount_function_qual, mcount_construction_qual, mcount_f_c_qual,"table_count_"+filename+" .csv")
+        files.write_prob_table(mp_f, mp_c, mp_cond_c_f,"table_prob_" + filename +".csv")
+        
+        # Store as pickle
+        files.store((mp_f, mp_c, mp_joint_f_c, mp_cond_c_f), filename+".p")
+    else:
+        print_sorted(count_function_qual)
+        print_sorted(count_construction_qual)
+        print_sorted(count_f_c_qual)
+        # Compute probabilities
+        print "PROBS:"
+        p_f, p_c, p_joint_f_c, p_cond_c_f = compute_probabilities(count_function_qual, count_construction_qual, count_f_c_qual)
+        print_sorted(p_f)
+        print_sorted(p_c)
+        print_sorted(p_cond_c_f)
+        files.write_count_table(count_function_qual, count_construction_qual, count_f_c_qual,"table_count_"+filename+" .csv")
+        files.write_prob_table(p_f, p_c, p_cond_c_f,"table_prob_" + filename +".csv")
+        
+        # Store as pickle
+        files.store((p_f, p_c, p_joint_f_c, p_cond_c_f), filename+".p")
+
+def create_lm_icelandic(merged_categories=True, order=True, drop_details=False):
+    filename = "lm-icelandic"
+    if order:
+        filename += "-order"
+    if merged_categories:
+        filename += "-merged"
+    if drop_details:
+        filename += "-dropdetails"
     
-    
-    print "PROBS:"
-    p_f, p_c, p_joint_f_c, p_cond_c_f = compute_probabilities(count_function_qual, count_construction_qual, count_f_c_qual)
-    print_sorted(p_f)
-    print_sorted(p_c)
-    print_sorted(p_cond_c_f)
-    files.write_prob_table(p_f, p_c, p_cond_c_f,"table_prob_german.csv")
-def create_lm_icelandic():
-    
-    ### Icelandic
     data = files.read_corpus("Saga")
     
     # Qualitative analysis: extract occurrences of interesting words in corpus, which can be manually annotated
@@ -533,44 +644,51 @@ def create_lm_icelandic():
     qualitative_examples, total_possessive = extract_constructions_qualitative(data, interesting_list)
     files.write_construction_csv(qualitative_examples, "qualitative-new",2000)
     
+    # Count qualitative, manually annotated, constructions
+    qual_entries = files.read_qualitative("20170103-qualitative-icelandic-justin.csv", lang_format="icelandic")
+    count_function_qual, count_construction_qual, count_f_c_qual, annotated_possessive, order_probs = count_qualitative(qual_entries, order, drop_details)
+    
     # Quantitative analysis
     verb_list = files.read_list("verbs_automatic.txt")
     adj_list = files.read_list("adjectives_automatic.txt")
     adv_list = files.read_list("adverbs_automatic.txt")
-    count_function_quant, count_construction_quant, count_f_c_quant = count_quantitative(data, verb_list, adj_list, adv_list)
-    
-    
-    
-    # Count qualitative, manually annotated, constructions
-    qual_entries = files.read_qualitative("qualitative-icelandic-justin.csv", lang_format="icelandic")
-    count_function_qual, count_construction_qual, count_f_c_qual, annotated_possessive = count_qualitative(qual_entries)
-
-    
-    ## Regular Icelandic language model
-    # Compute probabilities 
-    p_f, p_c, p_joint_f_c, p_cond_c_f = compute_probabilities_combined(count_function_quant, count_construction_quant, count_f_c_quant, count_function_qual, count_construction_qual, count_f_c_qual, total_possessive, annotated_possessive)
+    count_function_quant, count_construction_quant, count_f_c_quant = count_quantitative(data, verb_list, adj_list, adv_list, order, order_probs)
 
     
     
-    ## Store as pickle
-    files.store((p_f, p_c, p_joint_f_c, p_cond_c_f), "lm-icelandic.p")
-    
-    
-    ## Merged Icelandic language model
-    # Merge categories for qualitative and quantitative counts
-    mcount_function_quant, mcount_construction_quant, mcount_f_c_quant = merge_categories(count_function_quant,                                                                 count_construction_quant, count_f_c_quant)
-    
-    mcount_function_qual, mcount_construction_qual, mcount_f_c_qual = merge_categories(count_function_qual,                                                                 count_construction_qual, count_f_c_qual)
-    # Compute probabilities 
-    mp_f, mp_c, mp_joint_f_c, mp_cond_c_f = compute_probabilities_combined(mcount_function_quant, mcount_construction_quant, mcount_f_c_quant, mcount_function_qual, mcount_construction_qual, mcount_f_c_qual, total_possessive, annotated_possessive)
-    
-    print_sorted(mcount_construction_qual)
-    print_sorted(mcount_construction_quant)
-    print_sorted(mp_c)
-    # Store as pickle
-    files.store((mp_f, mp_c, mp_joint_f_c, mp_cond_c_f), "lm-icelandic-merged.p")
-    
+    if merged_categories:
+        ## Merged Icelandic language model
+        # Merge categories for qualitative and quantitative counts
+        mcount_function_quant, mcount_construction_quant, mcount_f_c_quant = merge_categories(count_function_quant,count_construction_quant, count_f_c_quant, lang_format="icelandic")
+        
+        mcount_function_qual, mcount_construction_qual, mcount_f_c_qual = merge_categories(count_function_qual,                                                                 count_construction_qual, count_f_c_qual, lang_format="icelandic")
+        # Compute probabilities 
+        mp_f, mp_c, mp_joint_f_c, mp_cond_c_f = compute_probabilities_combined(mcount_function_quant, mcount_construction_quant, mcount_f_c_quant, mcount_function_qual, mcount_construction_qual, mcount_f_c_qual, total_possessive, annotated_possessive)
+        
+        # Write human-readable count and probability tables
+        files.write_count_table(mcount_function_quant, mcount_construction_quant, mcount_f_c_quant,"table_count_quant_"+filename+" .csv")
+        files.write_count_table(mcount_function_qual, mcount_construction_qual, mcount_f_c_qual,"table_count_qual_"+filename+" .csv")
+        files.write_prob_table(mp_f, mp_c, mp_cond_c_f,"table_prob_" + filename +".csv")
+        # Store as pickle
+        files.store((mp_f, mp_c, mp_joint_f_c, mp_cond_c_f), filename+".p")
+    else:
+        # Compute probabilities 
+        p_f, p_c, p_joint_f_c, p_cond_c_f = compute_probabilities_combined(count_function_quant, count_construction_quant, count_f_c_quant, count_function_qual, count_construction_qual, count_f_c_qual, total_possessive, annotated_possessive)
+        # Write human-readable count and probability tables
+        files.write_count_table(count_function_quant, count_construction_quant, count_f_c_quant,"table_count_quant_"+filename+" .csv")
+        files.write_count_table(count_function_qual, count_construction_qual, count_f_c_qual,"table_count_qual_"+filename+" .csv")
+        files.write_prob_table(p_f, p_c, p_cond_c_f,"table_prob_" + filename +".csv")
+        
+        ## Store as pickle
+        files.store((p_f, p_c, p_joint_f_c, p_cond_c_f), filename+".p")
+
+def main():
+    create_lm_icelandic(merged_categories=True, order=False, drop_details=False)
+    create_lm_german(merged_categories=True, order=False, drop_details=False)
+    create_lm_icelandic(merged_categories=True, order=True, drop_details=False)
+    create_lm_german(merged_categories=True, order=True, drop_details=False)
+    create_lm_icelandic(merged_categories=True, order=True, drop_details=True)
+    create_lm_german(merged_categories=True, order=True, drop_details=True)
     
 if __name__ == "__main__":
-    #create_lm_icelandic()
-    create_lm_german()
+    main()
