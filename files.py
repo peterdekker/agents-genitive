@@ -238,40 +238,62 @@ def write_prob_table(p_f, p_c, p_cond_c_f, filename):
         p_inv[(f,c)] = p_cond_c_f[(c,f)]
     return write_count_table(p_f,p_c,p_inv, filename)
 
-def write_count_table(count_f, count_c, count_f_c, filename):
+def write_count_table(count_f, count_c, count_f_c, filename, latex=True):
     delim = ";"
+    if latex:
+        delim = "&"
     with open(filename,"w") as table_file:
         content_type = type(count_f_c.values()[0])
         dict_per_f = defaultdict(lambda: defaultdict(content_type))
-        c_set = set()
         for f,c in count_f_c:
             dict_per_f[f][c] = count_f_c[(f,c)]
-        c_list = [str(c) for c in count_c]
-        header_line = "F\\C" + delim
+        c_sorted = sorted(count_c.keys(), reverse=True)
+        c_list = [":".join(c) for c in c_sorted]
+        if latex:
+            header_line = "&&"
+        else:
+            header_line = "F\\C"
+        header_line += delim
         header_line += delim.join(c_list)
         header_line += delim + "\n"
+        header_line = header_line.encode("utf-8")
         table_file.write(header_line)
         # Write line with construction counts per function
         f_sorted = sorted(dict_per_f.keys())
         for f in f_sorted:
-            function_line = str(f)
+            function_line = "&".join(f)
             # Add count per construction
-            c_sorted = sorted(count_c.keys())
-            for c in count_c:
+            for c in c_sorted:
                 f_c_string = fmt(dict_per_f[f][c], content_type)
                 function_line += delim
                 function_line += f_c_string
             # Add function total
             tot_f_string = fmt(count_f[f], content_type)
             function_line += delim
+            if latex:
+                function_line += "\\textbf{"
             function_line += tot_f_string
+            if latex:
+                function_line += "}\\\\"
             function_line += "\n"
             table_file.write(function_line)
         # Write construction totals
         total_line = delim
-        for c in count_c:
+        for c in c_sorted:
             tot_c_string = fmt(count_c[c],content_type)
-            total_line += tot_c_string + delim
+            if latex:
+                total_line += "\\textbf{"
+            total_line += tot_c_string
+            if latex:
+                total_line += "}"
+            total_line += delim
+        final_total = sum(count_c[c] for c in count_c)
+        tot_c_string = fmt(final_total,content_type)
+        if latex:
+            total_line += "\\textbf{"
+        total_line += tot_c_string
+        if latex:
+            total_line += "}\\\\"
         total_line += "\n"
         table_file.write(total_line)
 
