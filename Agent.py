@@ -13,7 +13,7 @@ class Agent(object):
             exemplar_function = exemplar.get_function()
             
             # Calculate statistics of own agent
-            p_f, p_c, p_joint_f_c, p_cond_c_f = self.calculate_statistics()
+            p_f, p_c, p_joint_f_c, p_cond_c_f, p_cond_f_c, p_cond_c_f_bidir = self.calculate_statistics()
             possible_constructions = []
             probs = []
             # With probability self.random_construction_probability, sample from p_c
@@ -22,12 +22,17 @@ class Agent(object):
                     possible_constructions.append(c)
                     probs.append(p_c[c])
             else:
-                # Otherwise, use p_cond_c_f of own agent to decide which construction to use
-                for c,f in p_cond_c_f:
+                # Otherwise, use normalized p(c|f)*p(f|c) of own agent to decide which construction to use
+                for c,f in p_cond_c_f_bidir:
                     if f == exemplar_function:
                         possible_constructions.append(c)
-                        prob = p_cond_c_f[(c,f)]
+                        prob = p_cond_c_f_bidir[(c,f)]
                         probs.append(prob)
+                # These pseudo-probabilities have to be normalized
+                bidir_total = sum(probs)
+                probs = [x/float(bidir_total) for x in probs]
+                
+                
             constr_indices = np.arange(len(possible_constructions))
             construction_index = np.random.choice(constr_indices,p=probs)
             construction = possible_constructions[construction_index]
@@ -67,6 +72,9 @@ class Agent(object):
         p_c = defaultdict(float)
         p_joint_f_c = defaultdict(float)
         p_cond_c_f = defaultdict(float)
+        p_cond_f_c = defaultdict(float)
+        p_cond_c_f_bidir = defaultdict(float)
+        p_cond_c_f_bidir_norm = defaultdict(float)
         for function in count_function:
             # p(function) = c(function)/c(total)
             p_f[function] = count_function[function]/float(count_function_total)
@@ -80,8 +88,11 @@ class Agent(object):
             p_joint_f_c[(function,construction)] = count_f_c[(function,construction)]/float(count_f_c_total)
             # p(construction|function) = p(construction,function) / p(function)
             p_cond_c_f[(construction,function)] = p_joint_f_c[(function,construction)] / float(p_f[function])
-
-        return p_f, p_c, p_joint_f_c, p_cond_c_f
+            # p(function|construction) = p(function,construction) / p(construction)
+            p_cond_f_c[(function,construction)] = p_joint_f_c[(function,construction)] / float(p_c[construction])
+            
+            p_cond_c_f_bidir[(construction,function)] = p_cond_c_f[(construction,function)] * p_cond_f_c[(function,construction)]
+        return p_f, p_c, p_joint_f_c, p_cond_c_f, p_cond_f_c, p_cond_c_f_bidir
     
     def __init__(self,a_id, exemplar_set, random_construction_probability):
         self.a_id = str(a_id)
