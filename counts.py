@@ -452,6 +452,10 @@ def compute_probabilities(count_function, count_construction, count_f_c, smoothi
     count_function_total = sum(count_function[x] for x in count_function)
     count_construction_total = sum(count_construction[x] for x in count_construction)
     count_f_c_total = sum(count_f_c[x] for x in count_f_c)
+    print("TEST")
+    print(count_function_total)
+    print(count_construction_total)
+    print(count_f_c_total)
     assert (abs(count_function_total - count_construction_total) < 0.001 and
     abs(count_function_total - count_f_c_total) < 0.001)
     
@@ -498,7 +502,7 @@ def compare_files():
                 if old_line_split[0] != new_line_split[0]:
                     print i, old_line_split[0], new_line_split[0]
 
-def merge_categories(count_function, count_construction, count_f_c, lang_format):
+def merge_categories(count_function, count_construction, count_f_c, lang_format, merged_functions=False, drop_details=False):
     count_function_merged = defaultdict(int)
     count_construction_merged = defaultdict(int)
     count_f_c_merged = defaultdict(int)
@@ -510,24 +514,38 @@ def merge_categories(count_function, count_construction, count_f_c, lang_format)
     for function,construction in count_f_c:
         new_construction = construction
         new_function = function
-        if isinstance(function,basestring) and function.startswith("pre"):
-            new_function = "pre"
+        if isinstance(function,basestring):
+            if function.startswith("pre"):
+                new_function = "pre"
+        else:
+            # If tuple (possessor, possessee, alienability):
+            if merged_functions:
+                # keep only possessor
+                new_function = function[0]
         
+        if merged_functions:
+            # Remove preposition form
+            if construction[0] == "pre":
+                if len(new_construction)==3:
+                    new_construction = (construction[0],"", construction[2])
+                else:
+                    new_construction = (construction[0],"")
+            
         if lang_format == "icelandic":
             if construction[0] == "gen":
                 # Redivide gen endings in -s/-r/OTHER
                 if construction[1].endswith("s"):
-                    if len(construction)==3:
+                    if len(new_construction)==3:
                         new_construction = (construction[0],"s", construction[2])
                     else:
                         new_construction = (construction[0],"s")
                 elif construction[1].endswith("r"):
-                    if len(construction)==3:
+                    if len(new_construction)==3:
                         new_construction = (construction[0],"r", construction[2])
                     else:
                         new_construction = (construction[0],"r")
                 else:
-                    if len(construction)==3:
+                    if len(new_construction)==3:
                         new_construction = (construction[0],"OTHER", construction[2])
                     else:
                         new_construction = (construction[0],"OTHER")
@@ -535,17 +553,17 @@ def merge_categories(count_function, count_construction, count_f_c, lang_format)
             if construction[0] == "dat":
                 # Redivide dat endings in -i/EMPTY/OTHER
                 if construction[1].endswith("i"):
-                    if len(construction)==3:
+                    if len(new_construction)==3:
                         new_construction = (construction[0],"i", construction[2])
                     else:
                         new_construction = (construction[0],"i")
                 elif construction[1] == "EMPTY":
-                    if len(construction)==3:
+                    if len(new_construction)==3:
                         new_construction = (construction[0],"EMPTY", construction[2])
                     else:
                         new_construction = (construction[0],"EMPTY")
                 else:
-                    if len(construction)==3:
+                    if len(new_construction)==3:
                         new_construction = (construction[0],"OTHER", construction[2])
                     else:
                         new_construction = (construction[0],"OTHER")
@@ -555,39 +573,39 @@ def merge_categories(count_function, count_construction, count_f_c, lang_format)
             if construction[0] == "gen":
                 # Convert 'masc.st' to -s, rest to OTHER
                 if construction[1] == "masc.st":
-                    if len(construction)==3:
+                    if len(new_construction)==3:
                         new_construction = (construction[0],"s", construction[2])
                     else:
                         new_construction = (construction[0],"s")
                 else:
-                    if len(construction)==3:
+                    if len(new_construction)==3:
                         new_construction = (construction[0],"OTHER", construction[2])
                     else:
                         new_construction = (construction[0],"OTHER")
             
             if construction[0] == "dat":
                 # All datives have type OTHER
-                if len(construction)==3:
+                if len(new_construction)==3:
                     new_construction = (construction[0],"OTHER", construction[2])
                 else:
                     new_construction = (construction[0],"OTHER")
-            
+        if drop_details:
+            new_construction = new_construction[0]
         
-        if function not in visited_functions:
-            count_function_merged[new_function] += count_function[function]
-            visited_functions.add(function)
-        if construction not in visited_constructions:
-            count_construction_merged[new_construction] += count_construction[construction]
-            visited_constructions.add(construction)
-        count_f_c_merged[(new_function,new_construction)] += count_f_c[(function,construction)]
+        if not merged_functions or (construction[0] != "lpn" and construction[0] != "rel-pn" and function != "adv"):
+            count_function_merged[new_function] += count_f_c[(function,construction)]
+            count_construction_merged[new_construction] += count_f_c[(function,construction)]
+            count_f_c_merged[(new_function,new_construction)] += count_f_c[(function,construction)]
     return count_function_merged, count_construction_merged, count_f_c_merged
 
-def create_lm_german(order=True, merged_categories = True, drop_details = False):
+def create_lm_german(order=True, merged_categories = True, drop_details = False, merged_functions = False):
     filename = "lm-german"
     if order:
         filename += "-order"
     if merged_categories:
         filename += "-merged"
+    if merged_functions:
+        filename += "-fmerged"
     if drop_details:
         filename += "-dropdetails"
     
@@ -600,7 +618,7 @@ def create_lm_german(order=True, merged_categories = True, drop_details = False)
     
     if merged_categories:
         # Merge categories
-        mcount_function_qual, mcount_construction_qual, mcount_f_c_qual = merge_categories(count_function_qual, count_construction_qual, count_f_c_qual, lang_format="german")
+        mcount_function_qual, mcount_construction_qual, mcount_f_c_qual = merge_categories(count_function_qual, count_construction_qual, count_f_c_qual, lang_format="german", merged_functions=merged_functions, drop_details=drop_details)
         print_sorted(mcount_function_qual)
         print_sorted(mcount_construction_qual)
         print_sorted(mcount_f_c_qual)
@@ -608,7 +626,8 @@ def create_lm_german(order=True, merged_categories = True, drop_details = False)
         mp_f, mp_c, mp_joint_f_c, mp_cond_c_f = compute_probabilities(mcount_function_qual, mcount_construction_qual, mcount_f_c_qual)
         
         # Compute probabilities
-        #print "PROBS:"
+        print "PROBS:"
+        print_sorted(mp_joint_f_c)
         #print_sorted(mp_f)
         #print_sorted(mp_c)
         #print_sorted(mp_cond_c_f)
@@ -633,12 +652,14 @@ def create_lm_german(order=True, merged_categories = True, drop_details = False)
         # Store as pickle
         files.store((p_f, p_c, p_joint_f_c, p_cond_c_f), filename+".p")
 
-def create_lm_icelandic(merged_categories=True, order=True, drop_details=False):
+def create_lm_icelandic(merged_categories=True, merged_functions=False, order=True, drop_details=False):
     filename = "lm-icelandic"
     if order:
         filename += "-order"
     if merged_categories:
         filename += "-merged"
+    if merged_functions:
+        filename += "-fmerged"
     if drop_details:
         filename += "-dropdetails"
     
@@ -662,21 +683,17 @@ def create_lm_icelandic(merged_categories=True, order=True, drop_details=False):
     adv_list = files.read_list("adverbs_automatic.txt")
     count_function_quant, count_construction_quant, count_f_c_quant = count_quantitative(data, verb_list, adj_list, adv_list, order, order_probs)
     
-    print "NORMAL"
-    print_sorted(count_construction_quant)
-    
-    
     if merged_categories:
         ## Merged Icelandic language model
         # Merge categories for qualitative and quantitative counts
-        mcount_function_quant, mcount_construction_quant, mcount_f_c_quant = merge_categories(count_function_quant,count_construction_quant, count_f_c_quant, lang_format="icelandic")
+        mcount_function_quant, mcount_construction_quant, mcount_f_c_quant = merge_categories(count_function_quant,count_construction_quant, count_f_c_quant, lang_format="icelandic", merged_functions=merged_functions, drop_details = drop_details)
         
-        mcount_function_qual, mcount_construction_qual, mcount_f_c_qual = merge_categories(count_function_qual,                                                                 count_construction_qual, count_f_c_qual, lang_format="icelandic")
+        mcount_function_qual, mcount_construction_qual, mcount_f_c_qual = merge_categories(count_function_qual,                                                                 count_construction_qual, count_f_c_qual, lang_format="icelandic", merged_functions=merged_functions, drop_details = drop_details)
         # Compute probabilities 
         mp_f, mp_c, mp_joint_f_c, mp_cond_c_f = compute_probabilities_combined(mcount_function_quant, mcount_construction_quant, mcount_f_c_quant, mcount_function_qual, mcount_construction_qual, mcount_f_c_qual, total_possessive, annotated_possessive)
         
         print "MERGED"
-        print_sorted(mcount_construction_quant)
+        print_sorted(mp_joint_f_c)
         # Write human-readable count and probability tables
         files.write_count_table(mcount_function_quant, mcount_construction_quant, mcount_f_c_quant,"table_count_quant_"+filename+" .csv")
         files.write_count_table(mcount_function_qual, mcount_construction_qual, mcount_f_c_qual,"table_count_qual_"+filename+" .csv")
@@ -695,8 +712,8 @@ def create_lm_icelandic(merged_categories=True, order=True, drop_details=False):
         files.store((p_f, p_c, p_joint_f_c, p_cond_c_f), filename+".p")
 
 def main():
-    create_lm_icelandic(merged_categories=True, order=True, drop_details=False)
-    create_lm_german(merged_categories=True, order=True, drop_details=False)
+    create_lm_icelandic(merged_categories=True, order=False, drop_details=True, merged_functions=True)
+    create_lm_german(merged_categories=True, order=False, drop_details=True, merged_functions = True)
     
 if __name__ == "__main__":
     main()

@@ -18,7 +18,7 @@ from matplotlib.font_manager import FontProperties
 
 # Default parameter settings. Can be overridden using command line arguments.
 N_SIMULATIONS = 5
-N_ITERATIONS = 100000
+N_ITERATIONS = 300000
 N_AGENTS_ICELANDIC = 100
 N_EXEMPLARS = 50
 RANDOM_CONSTRUCTION_PROBABILITY = 0.01
@@ -29,7 +29,7 @@ PLOT_THRESHOLD = 0.05
 
 USE_INTRUDERS = False
 N_INTRUDERS = 50
-INTRUSION_ITERATION = 30000
+INTRUSION_ITERATION = 50000
 INTRUSION_N_BATCHES = 1
 INTRUSION_BATCH_INTERVAL = 10000
 
@@ -278,9 +278,9 @@ def main(FLAGS):
     
     # Perform N_SIMULATIONS simulations with new initialization
     for sim in np.arange(1,FLAGS.n_simulations+1):
-        icelandic_agents = initialize_agents("lm-icelandic-order-merged.p",FLAGS.n_agents_icelandic, FLAGS.n_exemplars, FLAGS.random_construction_probability)
+        icelandic_agents = initialize_agents("lm-icelandic-merged-fmerged-dropdetails.p",FLAGS.n_agents_icelandic, FLAGS.n_exemplars, FLAGS.random_construction_probability)
         if FLAGS.use_intruders:
-            intrusive_agents = initialize_agents("lm-german-order-merged.p",FLAGS.n_intruders, FLAGS.n_exemplars, FLAGS.random_construction_probability)
+            intrusive_agents = initialize_agents("lm-german-merged-fmerged-dropdetails.p",FLAGS.n_intruders, FLAGS.n_exemplars, FLAGS.random_construction_probability)
         else:
             intrusive_agents = None
         print "SIMULATION " + str(sim)
