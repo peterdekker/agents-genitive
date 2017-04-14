@@ -290,6 +290,13 @@ def main(FLAGS):
     #test_exemplar_set_sizes("lm-icelandic-merged.p", FLAGS.random_construction_probability)
     simulation_graphs = []
     
+    # Create plots directory
+    try: 
+        os.makedirs("plots")
+    except OSError:
+        if not os.path.isdir("plots"):
+            raise
+    
     # Perform N_SIMULATIONS simulations with new initialization
     for sim in np.arange(1,FLAGS.n_simulations+1):
         icelandic_agents = initialize_agents(FLAGS.lm_icelandic,FLAGS.n_agents_icelandic, FLAGS.n_exemplars, FLAGS.random_construction_probability)
