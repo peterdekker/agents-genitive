@@ -37,3 +37,6 @@ python counts.py --saga_input_dir Saga --qual_icelandic corpus/20170103-qualitat
 ```
 
 `--saga_input_dir` should be the place where the Saga corpus was downloaded. An `--output_dir` can also be specified, this is `pickles` by default.
+
+# Authors
+Simulation code written by Peter Dekker (firstname AT firstnamelastname DOT eu), with contributions on corpus extraction by Myrthe Bil. The manual annotations of Icelandic and Middle Low German data were performed by Justin Case.
