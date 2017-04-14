@@ -1,13 +1,42 @@
 # -*- coding: utf-8 -*-
 
+#MIT License
+
+#Copyright (c) 2017 Peter Dekker, Myrthe Bil
+
+#Permission is hereby granted, free of charge, to any person obtaining a copy
+#of this software and associated documentation files (the "Software"), to deal
+#in the Software without restriction, including without limitation the rights
+#to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#copies of the Software, and to permit persons to whom the Software is
+#furnished to do so, subject to the following conditions:
+
+#The above copyright notice and this permission notice shall be included in all
+#copies or substantial portions of the Software.
+
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#SOFTWARE.
+
+# counts.py: Stand-alone script to generate language model probabilities from corpus
+
 
 from collections import defaultdict
-
 import numpy as np
-
+import os
+import argparse
 import utility
 from utility import print_sorted
 import files
+
+QUAL_INTRUDERS = "20170103-qualitative-mlg-justin.csv"
+QUAL_ICELANDIC = "20170103-qualitative-icelandic-justin.csv"
+OUTPUT_DIR = "pickles"
+SAGA_INPUT_DIR = "Saga"
 
 def count_dict(dct):
     count = defaultdict(int)
@@ -452,10 +481,6 @@ def compute_probabilities(count_function, count_construction, count_f_c, smoothi
     count_function_total = sum(count_function[x] for x in count_function)
     count_construction_total = sum(count_construction[x] for x in count_construction)
     count_f_c_total = sum(count_f_c[x] for x in count_f_c)
-    print("TEST")
-    print(count_function_total)
-    print(count_construction_total)
-    print(count_f_c_total)
     assert (abs(count_function_total - count_construction_total) < 0.001 and
     abs(count_function_total - count_f_c_total) < 0.001)
     
@@ -490,6 +515,7 @@ def compute_probabilities(count_function, count_construction, count_f_c, smoothi
     
     return p_f, p_c, p_joint_f_c, p_cond_c_f
 
+# Function currently not in use, just for diagnostic purposes
 def compare_files():
     with open("qualitative-icelandic-justin.csv","r") as old:
         with open("qualitative-new-2000.csv","r") as new:
@@ -610,47 +636,30 @@ def create_lm_german(order=True, merged_categories = True, drop_details = False,
         filename += "-dropdetails"
     
     # Count qualitative, manually annotated, constructions
-    qual_entries = files.read_qualitative("20170103-qualitative-mlg-justin.csv", lang_format="german")
+    qual_entries = files.read_qualitative(FLAGS.qual_intruders, lang_format="german")
     count_function_qual, count_construction_qual, count_f_c_qual, _, order_probs = count_qualitative(qual_entries, order, drop_details)
     
-    print "German order probs"
-    print order_probs
     
     if merged_categories:
         # Merge categories
         mcount_function_qual, mcount_construction_qual, mcount_f_c_qual = merge_categories(count_function_qual, count_construction_qual, count_f_c_qual, lang_format="german", merged_functions=merged_functions, drop_details=drop_details)
-        print_sorted(mcount_function_qual)
-        print_sorted(mcount_construction_qual)
-        print_sorted(mcount_f_c_qual)
+
 
         mp_f, mp_c, mp_joint_f_c, mp_cond_c_f = compute_probabilities(mcount_function_qual, mcount_construction_qual, mcount_f_c_qual)
         
         # Compute probabilities
-        print "PROBS:"
-        print_sorted(mp_joint_f_c)
-        #print_sorted(mp_f)
-        #print_sorted(mp_c)
-        #print_sorted(mp_cond_c_f)
-        files.write_count_table(mcount_function_qual, mcount_construction_qual, mcount_f_c_qual,"table_count_"+filename+" .csv")
-        files.write_prob_table(mp_f, mp_c, mp_cond_c_f,"table_prob_" + filename +".csv")
+        files.write_count_table(mcount_function_qual, mcount_construction_qual, mcount_f_c_qual,os.path.join(FLAGS.output_dir, "table_count_"+filename+".csv"))
+        files.write_prob_table(mp_f, mp_c, mp_cond_c_f,os.path.join(FLAGS.output_dir,"table_prob_" + filename +".csv"))
         
         # Store as pickle
-        files.store((mp_f, mp_c, mp_joint_f_c, mp_cond_c_f), filename+".p")
+        files.store((mp_f, mp_c, mp_joint_f_c, mp_cond_c_f), os.path.join(FLAGS.output_dir,filename+".p"))
     else:
-        #print_sorted(count_function_qual)
-        #print_sorted(count_construction_qual)
-        #print_sorted(count_f_c_qual)
-        ## Compute probabilities
-        #print "PROBS:"
         p_f, p_c, p_joint_f_c, p_cond_c_f = compute_probabilities(count_function_qual, count_construction_qual, count_f_c_qual)
-        #print_sorted(p_f)
-        #print_sorted(p_c)
-        #print_sorted(p_cond_c_f)
-        files.write_count_table(count_function_qual, count_construction_qual, count_f_c_qual,"table_count_"+filename+" .csv")
-        files.write_prob_table(p_f, p_c, p_cond_c_f,"table_prob_" + filename +".csv")
+        files.write_count_table(count_function_qual, count_construction_qual, count_f_c_qual,os.path.join(FLAGS.output_dir,"table_count_"+filename+".csv"))
+        files.write_prob_table(p_f, p_c, p_cond_c_f,os.path.join(FLAGS.output_dir,"table_prob_" + filename +".csv"))
         
         # Store as pickle
-        files.store((p_f, p_c, p_joint_f_c, p_cond_c_f), filename+".p")
+        files.store((p_f, p_c, p_joint_f_c, p_cond_c_f), os.path.join(FLAGS.output_dir,filename+".p"))
 
 def create_lm_icelandic(merged_categories=True, merged_functions=False, order=True, drop_details=False):
     filename = "lm-icelandic"
@@ -663,24 +672,23 @@ def create_lm_icelandic(merged_categories=True, merged_functions=False, order=Tr
     if drop_details:
         filename += "-dropdetails"
     
-    data = files.read_corpus("Saga")
+    data = files.read_corpus(FLAGS.saga_input_dir)
     
     # Qualitative analysis: extract occurrences of interesting words in corpus, which can be manually annotated
-    interesting_list = files.read_list("icelandic-interesting-modified.txt") + files.read_list("icelandic-interesting-names.txt")
+    #NOTE: We have already extracted this file in the past, and manually annotated it, that file is used in the
+    # next step. We however still perform this step to get the total number of possessives in the qualitative sample.
+    interesting_list = files.read_list("corpus/icelandic-interesting-modified.txt") + files.read_list("corpus/icelandic-interesting-names.txt")
     qualitative_examples, total_possessive = extract_constructions_qualitative(data, interesting_list)
     files.write_construction_csv(qualitative_examples, "qualitative-new",2000)
     
     # Count qualitative, manually annotated, constructions
-    qual_entries = files.read_qualitative("20170103-qualitative-icelandic-justin.csv", lang_format="icelandic")
+    qual_entries = files.read_qualitative(FLAGS.qual_icelandic, lang_format="icelandic")
     count_function_qual, count_construction_qual, count_f_c_qual, annotated_possessive, order_probs = count_qualitative(qual_entries, order, drop_details)
     
-    print "Icelandic order probs"
-    print order_probs
-    
     # Quantitative analysis
-    verb_list = files.read_list("verbs_automatic.txt")
-    adj_list = files.read_list("adjectives_automatic.txt")
-    adv_list = files.read_list("adverbs_automatic.txt")
+    verb_list = files.read_list("corpus/verbs_automatic.txt")
+    adj_list = files.read_list("corpus/adjectives_automatic.txt")
+    adv_list = files.read_list("corpus/adverbs_automatic.txt")
     count_function_quant, count_construction_quant, count_f_c_quant = count_quantitative(data, verb_list, adj_list, adv_list, order, order_probs)
     
     if merged_categories:
@@ -692,28 +700,42 @@ def create_lm_icelandic(merged_categories=True, merged_functions=False, order=Tr
         # Compute probabilities 
         mp_f, mp_c, mp_joint_f_c, mp_cond_c_f = compute_probabilities_combined(mcount_function_quant, mcount_construction_quant, mcount_f_c_quant, mcount_function_qual, mcount_construction_qual, mcount_f_c_qual, total_possessive, annotated_possessive)
         
-        print "MERGED"
-        print_sorted(mp_joint_f_c)
         # Write human-readable count and probability tables
-        files.write_count_table(mcount_function_quant, mcount_construction_quant, mcount_f_c_quant,"table_count_quant_"+filename+" .csv")
-        files.write_count_table(mcount_function_qual, mcount_construction_qual, mcount_f_c_qual,"table_count_qual_"+filename+" .csv")
-        files.write_prob_table(mp_f, mp_c, mp_cond_c_f,"table_prob_" + filename +".csv")
+        files.write_count_table(mcount_function_quant, mcount_construction_quant, mcount_f_c_quant,os.path.join(FLAGS.output_dir,"table_count_quant_"+filename+".csv"))
+        files.write_count_table(mcount_function_qual, mcount_construction_qual, mcount_f_c_qual,os.path.join(FLAGS.output_dir,"table_count_qual_"+filename+".csv"))
+        files.write_prob_table(mp_f, mp_c, mp_cond_c_f,os.path.join(FLAGS.output_dir,"table_prob_" + filename +".csv"))
         # Store as pickle
-        files.store((mp_f, mp_c, mp_joint_f_c, mp_cond_c_f), filename+".p")
+        files.store((mp_f, mp_c, mp_joint_f_c, mp_cond_c_f), os.path.join(FLAGS.output_dir,filename+".p"))
     else:
         # Compute probabilities 
         p_f, p_c, p_joint_f_c, p_cond_c_f = compute_probabilities_combined(count_function_quant, count_construction_quant, count_f_c_quant, count_function_qual, count_construction_qual, count_f_c_qual, total_possessive, annotated_possessive)
         # Write human-readable count and probability tables
-        files.write_count_table(count_function_quant, count_construction_quant, count_f_c_quant,"table_count_quant_"+filename+" .csv")
-        files.write_count_table(count_function_qual, count_construction_qual, count_f_c_qual,"table_count_qual_"+filename+" .csv")
-        files.write_prob_table(p_f, p_c, p_cond_c_f,"table_prob_" + filename +".csv")
+        files.write_count_table(count_function_quant, count_construction_quant, count_f_c_quant,os.path.join(FLAGS.output_dir,"table_count_quant_"+filename+".csv"))
+        files.write_count_table(count_function_qual, count_construction_qual, count_f_c_qual,os.path.join(FLAGS.output_dir,"table_count_qual_"+filename+".csv"))
+        files.write_prob_table(p_f, p_c, p_cond_c_f,os.path.join(FLAGS.output_dir,"table_prob_" + filename +".csv"))
         
         ## Store as pickle
-        files.store((p_f, p_c, p_joint_f_c, p_cond_c_f), filename+".p")
+        files.store((p_f, p_c, p_joint_f_c, p_cond_c_f), os.path.join(FLAGS.output_dir,filename+".p"))
 
 def main():
-    create_lm_icelandic(merged_categories=True, order=False, drop_details=True, merged_functions=True)
-    create_lm_german(merged_categories=True, order=False, drop_details=True, merged_functions = True)
+    choice = [False, True]
+    for merged_categories in choice:
+        for order in choice:
+            for drop_details in choice:
+                for merged_functions in choice:
+                    create_lm_icelandic(merged_categories=merged_categories, order=order, drop_details=drop_details, merged_functions=drop_details)
+                    if len(FLAGS.qual_intruders)>0:
+                        create_lm_german(merged_categories=merged_categories, order=order, drop_details=drop_details, merged_functions=drop_details)
+    #create_lm_icelandic(merged_categories=True, order=False, drop_details=True, merged_functions=True)
+    #create_lm_german(merged_categories=True, order=False, drop_details=True, merged_functions = True)
     
 if __name__ == "__main__":
+    # Command line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--saga_input_dir', type = str, default=SAGA_INPUT_DIR)
+    parser.add_argument('--qual_icelandic', type = str, required=True)
+    parser.add_argument('--qual_intruders', type = str, default="")
+    parser.add_argument('--output_dir', type = str, default=OUTPUT_DIR)
+    FLAGS, unparsed = parser.parse_known_args()
+    utility.print_flags(FLAGS)
     main()

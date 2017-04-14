@@ -1,4 +1,26 @@
+#MIT License
 
+#Copyright (c) 2017 Peter Dekker
+
+#Permission is hereby granted, free of charge, to any person obtaining a copy
+#of this software and associated documentation files (the "Software"), to deal
+#in the Software without restriction, including without limitation the rights
+#to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#copies of the Software, and to permit persons to whom the Software is
+#furnished to do so, subject to the following conditions:
+
+#The above copyright notice and this permission notice shall be included in all
+#copies or substantial portions of the Software.
+
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#SOFTWARE.
+
+# agents.py: Script to run agent simulation
 
 import dill as pickle
 from collections import defaultdict
@@ -27,7 +49,6 @@ GRAPH_FREQUENCY = 500
 PRINT_FREQUENCY = 5000
 PLOT_THRESHOLD = 0.05
 
-USE_INTRUDERS = False
 N_INTRUDERS = 50
 INTRUSION_ITERATION = 50000
 INTRUSION_N_BATCHES = 1
@@ -36,13 +57,6 @@ INTRUSION_BATCH_INTERVAL = 10000
 ALL_FUNCTIONS = ['pre', 'adv', ('+A', '-A', '+ali'), ('+A', '+A', '-ali'), ('+A+PN', '-A', '+ali'), ('-A', '-A', '-ali'), ('-A', '+A', '-ali'), ('-A', '-A', '+ali'), ('+A+PN', '-A', '-ali'), ('+A', '+A', '+ali'), 'verb', ('+A', '-A', '-ali'), ('+A+PN', '+A', '+ali'), ('+A+PN', '+A', '-ali')]
 
 WATCH_FUNCTIONS = ALL_FUNCTIONS
-
-def print_flags(FLAGS):
-    """
-    Prints all entries in FLAGS variable.
-    """
-    for key, value in vars(FLAGS).items():
-        print(key + ' : ' + str(value))
 
 def initialize_agents(lm_file, n_agents, n_exemplars, random_construction_probability):
     agents = []
@@ -153,7 +167,7 @@ def plot_graphs_cond(graphs_cond_c_f, FLAGS):
     fontQ = FontProperties(size=9)
     
     filename= "constructions-" + str(FLAGS.n_iterations) + "x" + str(FLAGS.n_simulations)
-    if FLAGS.use_intruders:
+    if (FLAGS.lm_intruders) > 0:
         filename+= "-intruders" + str(FLAGS.n_intruders) + "@" + str(FLAGS.intrusion_iteration)
     filename+= "-" + "random" + str(FLAGS.random_construction_probability)
     
@@ -202,7 +216,7 @@ def plot_graph_c(graph_c, FLAGS):
     ax.legend(handles=legend_info, loc="center left", bbox_to_anchor=(1.0, 0.5), prop=fontQ)
     
     filename= "plots/constructions-" + str(FLAGS.n_iterations) + "x" + str(FLAGS.n_simulations)
-    if FLAGS.use_intruders:
+    if len(FLAGS.lm_intruders) > 0:
         filename+= "-intruders" + str(FLAGS.n_intruders) + "x" + str(FLAGS.intrusion_n_batches) + "@" + str(FLAGS.intrusion_iteration)
         if FLAGS.intrusion_n_batches > 1:
             filename += ">" + str(FLAGS.intrusion_batch_interval)
@@ -278,9 +292,9 @@ def main(FLAGS):
     
     # Perform N_SIMULATIONS simulations with new initialization
     for sim in np.arange(1,FLAGS.n_simulations+1):
-        icelandic_agents = initialize_agents("lm-icelandic-merged-fmerged-dropdetails.p",FLAGS.n_agents_icelandic, FLAGS.n_exemplars, FLAGS.random_construction_probability)
-        if FLAGS.use_intruders:
-            intrusive_agents = initialize_agents("lm-german-merged-fmerged-dropdetails.p",FLAGS.n_intruders, FLAGS.n_exemplars, FLAGS.random_construction_probability)
+        icelandic_agents = initialize_agents(FLAGS.lm_icelandic,FLAGS.n_agents_icelandic, FLAGS.n_exemplars, FLAGS.random_construction_probability)
+        if len(FLAGS.lm_intruders) > 0:
+            intrusive_agents = initialize_agents(FLAGS.lm_intruders,FLAGS.n_intruders, FLAGS.n_exemplars, FLAGS.random_construction_probability)
         else:
             intrusive_agents = None
         print "SIMULATION " + str(sim)
@@ -297,17 +311,17 @@ def main(FLAGS):
 if __name__ == "__main__":
     # Command line arguments
     parser = argparse.ArgumentParser()
-
+    parser.add_argument('--lm_icelandic', type = str, required=True)
     parser.add_argument('--n_simulations', type = int, default = N_SIMULATIONS)
     parser.add_argument('--n_iterations', type = int, default = N_ITERATIONS)
     parser.add_argument('--n_agents_icelandic', type = int, default = N_AGENTS_ICELANDIC)
     parser.add_argument('--n_exemplars', type = int, default = N_EXEMPLARS)
     parser.add_argument('--random_construction_probability', type = float, default = RANDOM_CONSTRUCTION_PROBABILITY)
-    parser.add_argument('--use_intruders', action='store_true', default=USE_INTRUDERS)
+    parser.add_argument('--lm_intruders', type = str, default="")
     parser.add_argument('--n_intruders', type = int, default = N_INTRUDERS)
     parser.add_argument('--intrusion_iteration', type = int, default = INTRUSION_ITERATION)
     parser.add_argument('--intrusion_n_batches', type = int, default = INTRUSION_N_BATCHES)
     parser.add_argument('--intrusion_batch_interval', type = int, default = INTRUSION_BATCH_INTERVAL)
     FLAGS, unparsed = parser.parse_known_args()
-    print_flags(FLAGS)
+    utility.print_flags(FLAGS)
     main(FLAGS)
