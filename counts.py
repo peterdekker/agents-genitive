@@ -624,11 +624,11 @@ def merge_categories(count_function, count_construction, count_f_c, lang_format,
             count_f_c_merged[(new_function,new_construction)] += count_f_c[(function,construction)]
     return count_function_merged, count_construction_merged, count_f_c_merged
 
-def create_lm_german(order=True, merged_categories = True, drop_details = False, merged_functions = False):
+def create_lm_german(order=True, merged = True, drop_details = False, merged_functions = False):
     filename = "lm-german"
     if order:
         filename += "-order"
-    if merged_categories:
+    if merged:
         filename += "-merged"
     if merged_functions:
         filename += "-fmerged"
@@ -640,7 +640,7 @@ def create_lm_german(order=True, merged_categories = True, drop_details = False,
     count_function_qual, count_construction_qual, count_f_c_qual, _, order_probs = count_qualitative(qual_entries, order, drop_details)
     
     
-    if merged_categories:
+    if merged:
         # Merge categories
         mcount_function_qual, mcount_construction_qual, mcount_f_c_qual = merge_categories(count_function_qual, count_construction_qual, count_f_c_qual, lang_format="german", merged_functions=merged_functions, drop_details=drop_details)
 
@@ -661,11 +661,11 @@ def create_lm_german(order=True, merged_categories = True, drop_details = False,
         # Store as pickle
         files.store((p_f, p_c, p_joint_f_c, p_cond_c_f), os.path.join(FLAGS.output_dir,filename+".p"))
 
-def create_lm_icelandic(merged_categories=True, merged_functions=False, order=True, drop_details=False):
+def create_lm_icelandic(merged=True, merged_functions=False, order=True, drop_details=False):
     filename = "lm-icelandic"
     if order:
         filename += "-order"
-    if merged_categories:
+    if merged:
         filename += "-merged"
     if merged_functions:
         filename += "-fmerged"
@@ -691,7 +691,7 @@ def create_lm_icelandic(merged_categories=True, merged_functions=False, order=Tr
     adv_list = files.read_list("corpus/adverbs_automatic.txt")
     count_function_quant, count_construction_quant, count_f_c_quant = count_quantitative(data, verb_list, adj_list, adv_list, order, order_probs)
     
-    if merged_categories:
+    if merged:
         ## Merged Icelandic language model
         # Merge categories for qualitative and quantitative counts
         mcount_function_quant, mcount_construction_quant, mcount_f_c_quant = merge_categories(count_function_quant,count_construction_quant, count_f_c_quant, lang_format="icelandic", merged_functions=merged_functions, drop_details = drop_details)
@@ -718,16 +718,20 @@ def create_lm_icelandic(merged_categories=True, merged_functions=False, order=Tr
         files.store((p_f, p_c, p_joint_f_c, p_cond_c_f), os.path.join(FLAGS.output_dir,filename+".p"))
 
 def main():
+    # Create output dir, if it does not yet exist
+    try: 
+        os.makedirs(FLAGS.output_dir)
+    except OSError:
+        if not os.path.isdir(FLAGS.output_dir):
+            raise
+    
     choice = [False, True]
-    for merged_categories in choice:
-        for order in choice:
-            for drop_details in choice:
-                for merged_functions in choice:
-                    create_lm_icelandic(merged_categories=merged_categories, order=order, drop_details=drop_details, merged_functions=drop_details)
-                    if len(FLAGS.qual_intruders)>0:
-                        create_lm_german(merged_categories=merged_categories, order=order, drop_details=drop_details, merged_functions=drop_details)
-    #create_lm_icelandic(merged_categories=True, order=False, drop_details=True, merged_functions=True)
-    #create_lm_german(merged_categories=True, order=False, drop_details=True, merged_functions = True)
+    for order in choice:
+        for drop_details in choice:
+            for merged_functions in choice:
+                create_lm_icelandic(merged=True, order=order, drop_details=drop_details, merged_functions=merged_functions)
+                if len(FLAGS.qual_intruders)>0:
+                    create_lm_german(merged=True, order=order, drop_details=drop_details, merged_functions=merged_functions)
     
 if __name__ == "__main__":
     # Command line arguments
