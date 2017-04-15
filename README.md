@@ -20,7 +20,7 @@ You could use `pickles/lm-icelandic-merged.p/` as pickle for the language model 
 Several settings can be changed via command line options, such as the number of iterations and the number of agents. `python agents.py --help` shows the available options. The standard values for the command line arguments are listed in the source code, at the top of `agents.py`.
 
 ### Intruders
-To add (Middle Low German) intruders, use the `--lm_intruders <INTRUDERS_PICKLE>` flag. `<INTRUDERS_PICKLE>` is the pickle file containing the pickle of the intruders. File names follow the same pattern as the Icelandic (basis language) pickles. The number of intruders, number of intruder batches and the intervals between the batches can be set using command line arguments. Issue
+To add (Middle Low German) intruders, use the `--lm_intruders <INTRUDERS_PICKLE>` flag. `<INTRUDERS_PICKLE>` is the pickle file containing the pickle of the intruders. File names follow the same pattern as the Icelandic (basis language) pickles. The number of intruders, number of intruder batches and the intervals between the batches can be set using command line arguments. Issue `--help` for the possible options.
 
 ### Plots
 Plots of the distribution *p(construction)* are generated and stored in the `plots/` folder. Plots of the conditional distributions *p(construction|function)* are stored per function in the `plots/<FUNCTION>/` folder.
